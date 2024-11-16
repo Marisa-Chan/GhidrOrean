@@ -116,13 +116,11 @@ class CISC(VM):
     TRID = None
 
     def __init__(self, d):
-        VM.__init__(self, 1)
-        self.mblk = MMBlock()
+        VM.__init__(self, 1, d)
         self.vmEntry = dict()
         self.CiscHndl = list()
         self.CiscHndlMap = dict()
         self.CiscHndlRevMap = dict()
-        self.WrkDir = d
 
         self.LoadJunk()
         self.LoadSyntax()

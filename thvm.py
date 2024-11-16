@@ -1,10 +1,27 @@
+from __main__ import *
+from xrkutil import *
 
 
 class VM:
     tp = 0
+    WrkDir = ""
+    mblk = None
 
-    def __init__(self, t):
+    def __init__(self, t, d):
         self.tp = t
+        self.mblk = MMBlock()
+        self.WrkDir = d
+
+    def InBlock(self, addr):
+        if UINT(addr) >= self.mblk.addr and UINT(addr) < self.mblk.addr + self.mblk.size:
+            return True
+        return False
+
+    def GetMM(self, addr):
+        if UINT(addr) >= self.mblk.addr and UINT(addr) < self.mblk.addr + self.mblk.size:
+            return ROSlice(self.mblk.data, UINT(addr) - self.mblk.addr)
+        #return self.mblk.data[UINT(addr) - self.mblk.addr:]
+        return None
 
 
 class CLABEL:
@@ -16,7 +33,6 @@ class CLABEL:
     proceed = 0
     printed = 0
     idx = 0
-    mblk = None
 
 class CLABELS:
     arr = None
@@ -75,17 +91,6 @@ class CLABELS:
         for l in self.arr:
             if l.used == 1 and l.printed == 0 and addr >= l.addr:
                 return l
-        return None
-
-    def InBlock(self, addr):
-        if UINT(addr) >= self.mblk.addr and UINT(addr) < self.mblk.addr + self.mblk.size:
-            return True
-        return False
-
-    def GetMM(self, addr):
-        if UINT(addr) >= self.mblk.addr and UINT(addr) < self.mblk.addr + self.mblk.size:
-            return ROSlice(self.mblk.data, UINT(addr) - self.mblk.addr)
-        #return self.mblk.data[UINT(addr) - self.mblk.addr:]
         return None
 
 LABELS = CLABELS()

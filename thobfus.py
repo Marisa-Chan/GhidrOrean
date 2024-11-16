@@ -218,7 +218,7 @@ class Defus:
 
 				op0.operand[1].value = val
 
-				self.Cleaner(i, 10)
+				self.Cleaner(i, 10 + k)
 				return True #brake
 		return False
 
@@ -1290,7 +1290,7 @@ class Defus:
 						op0.operand[1].value = ojp0.operand[1].value
 						op0.operand[1].val2 = ojp0.operand[1].val2
 					self.DebugErrModify(i, j + 4, 0)
-					self.Cleaner(i, 10)
+					self.Cleaner(i, 10 + j)
 
 	def Round9_2(self, i):
 		op0 = self.heap[i].instr
@@ -1448,7 +1448,7 @@ class Defus:
 						op0.operand[0].val2 -= 2
 
 				self.DebugErrModify(i, j + 4, 0)
-				self.Cleaner(i, 10)
+				self.Cleaner(i, 10 + j)
 
 	def Round12_1(self, i):
 		op0 = self.heap[i].instr
@@ -1760,6 +1760,8 @@ class Defus:
 			self.Round11()
 			self.Round12()
 
+
+			#self.Cleaner()
 
 			#ipos = self.GetOpPos(0x10ee26fd)
 			#if ipos >= 0:

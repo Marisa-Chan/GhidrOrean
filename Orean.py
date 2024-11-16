@@ -14,6 +14,7 @@ from xrkdsm import *
 from xrkutil import *
 import thrisc
 import thcisc
+import thfish
 
 WRKDIR = "/home/marisa/ghidra_scripts"
 
@@ -102,6 +103,18 @@ def main(addr):
 
 			print("ok {:08x}".format(vm.pushValue))
 			vm.DeVirt(0x10000)
+	elif vmSig == 5:
+		vm = thfish.FISH(WRKDIR)
+
+		if not vm.Step0(addr):
+			return
+
+		if not vm.Step1(vm.VMAddr):
+			print("[AntiFISH] Failed to load zero data")
+			return
+
+
+
 
 
 
