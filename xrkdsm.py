@@ -1,8 +1,3 @@
-from xrktbl import *
-from xrkutil import *
-from xrkopr import *
-
-
 EFLG_CF = (1<<0)
 EFLG_PF = (1<<2)
 EFLG_AF = (1<<4)
@@ -21,7 +16,51 @@ EFLG_VIF = (1<<19)
 EFLG_VIP = (1<<20)
 EFLG_ID = (1<<21)
 
+TID_REG = 1
+TID_VAL = 2
+TID_MEM = 3
 
+ID_REG = 0x10
+ID_VALx = 0x20
+ID_VAL8 = 0x21
+ID_VAL16 = 0x22
+ID_VAL32 = 0x23
+ID_MEMx = 0x30
+ID_MEM8 = 0x31
+ID_MEM16 = 0x32
+ID_MEM32 = 0x33
+
+R_EAX = 0x03
+R_ECX = 0x13
+R_EDX = 0x23
+R_EBX = 0x33
+R_ESP = 0x43
+R_EBP = 0x53
+R_ESI = 0x63
+R_EDI = 0x73
+
+R_AX = 0x02
+R_CX = 0x12
+R_DX = 0x22
+R_BX = 0x32
+R_SP = 0x42
+R_BP = 0x52
+R_SI = 0x62
+R_DI = 0x72
+
+R_AL = 0x01
+R_CL = 0x11
+R_DL = 0x21
+R_BL = 0x31
+R_AH = 0x41
+R_CH = 0x51
+R_DH = 0x61
+R_BH = 0x71
+
+
+from xrktbl import *
+from xrkutil import *
+from xrkopr import *
 
 class EFlags:
 	CF = False #0
@@ -420,11 +459,11 @@ PTRNAME = ("UNK PTR", "BYTE PTR ", "WORD PTR ", "DWORD PTR ",\
 		   "FWORD PTR ", "QWORD PTR ", "TBYTE PTR ", "(14-BYTE) PTR ",\
 		   "UNK PTR", "(28-BYTE) PTR ", "(98-BYTE) PTR ", "(108-BYTE) PTR ",\
 		   "UNK PTR", "UNK PTR", "UNK PTR", "UNK PTR")
-MULNAME = ("*0", "*2", "*4", "*8")
+MULNAME = ("*1", "*2", "*4", "*8")
 SEGNAME = ("ES", "CS", "SS", "DS", "FS", "GS", "SEG?", "SEG?",\
 		   "SEG?", "SEG?", "SEG?", "SEG?", "SEG?", "SEG?", "SEG?", "SEG?")
 
-def XrkTextOp(rk, i):
+def XrkTextOp(rk, i = 0):
 	o = ""
 	if i == 0:
 		o = " "

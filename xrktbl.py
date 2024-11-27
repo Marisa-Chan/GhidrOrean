@@ -1,4 +1,4 @@
-from xrkop import * 
+from xrkopr import *
 
 OP_AAA = 0x1
 OP_AAD = 0x2

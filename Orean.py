@@ -113,8 +113,18 @@ def main(addr):
 			print("[AntiFISH] Failed to load zero data")
 			return
 
+		if not vm.Step2():
+			print("[AntiFISH] Failed to process zero data")
+			return
 
 
+		if not vm.KeyWalk():
+			print("[AntiFISH] Failed keywalk searching")
+			return
+
+		if not vm.DeofusVM():
+			print("[AntiFISH] Can\'t deofuscate virtual machine")
+			return
 
 
 

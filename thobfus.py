@@ -39,12 +39,12 @@ def FUN_10065850(op1, op2):
 			return True
 	return False
 
-def IsOpClass(op, mv, idnn, asx):
-	if mv and op == OP_MOV:
+def IsOpClass(opid, mv, idnn, asx):
+	if mv and opid == OP_MOV:
 		return True
-	elif idnn and op in (OP_INC, OP_DEC, OP_NEG, OP_NOT):
+	elif idnn and opid in (OP_INC, OP_DEC, OP_NEG, OP_NOT):
 		return True
-	elif asx and op in (OP_ADD, OP_SUB, OP_XOR, OP_OR, OP_AND, OP_SHL, OP_SHR):
+	elif asx and opid in (OP_ADD, OP_SUB, OP_XOR, OP_OR, OP_AND, OP_SHL, OP_SHR):
 		return True
 	return False
 
@@ -1735,6 +1735,18 @@ class Defus:
 			self.Round12_4(i)
 			self.Round12_5(i)
 			i += 1
+
+
+	def Clear_MovV2(self):
+		i = 0
+		while i < self.count:
+			op = self.heap[i].instr
+			if op.ID == OP_MOV and op.operand[0].ID == 0x10 and op.operand[1].ID == 0x10 and\
+			   op.operand[0].GetB(0) == op.operand[1].GetB(0):
+			   op.ID = 0
+			i += 1
+
+		self.Cleaner()
 	
 	
 	def SimpleA(self, a, vm, dbg = False):
@@ -1785,7 +1797,49 @@ class Defus:
 		pass
 	
 	def SimpleC(self, a, vm, dbg = False):
-		pass
+		if dbg:
+			self.RebuildInfo()
+			print("")
+			for l in self.GetListing(True, False):
+				print(l)
+		while True:
+			cnt = self.count
+
+			self.Round1()
+			self.Round2()
+			self.Round3()
+			self.Round4()
+			self.Round5()
+			self.Round6()
+			self.Round7()
+			self.Round8()
+			self.Round9()
+
+			self.Round11()
+			self.Round12()
+
+			# self.Cleaner()
+
+			# ipos = self.GetOpPos(0x10ee26fd)
+			# if ipos >= 0:
+			#	Recompute( self.heap[ipos:ipos + 20] )
+
+			# print("cnt {} {}".format(cnt, self.count))
+
+			if dbg:
+				print("cnt {} {}".format(cnt, self.count))
+				self.RebuildInfo()
+				for l in self.GetListing(True, False):
+					print(l)
+
+			if cnt == self.count:
+				self.CollapseArithmetic(vm.tp)
+
+				if cnt == self.count:
+					self.Clear_MovV2()
+
+				if cnt == self.count:
+					break
 	
 	def Simple(self, vm, a, mode, dbg = False):
 		if mode == 'A':
@@ -1873,6 +1927,83 @@ class Defus:
 
 			i -= 1
 		return (2, 0, 0)
+
+	def NextOpPos(self, op, startn = 0):
+		i = startn
+		while i < self.count:
+			if self.heap[i].instr.ID == op:
+				return i
+			i += 1
+		return -1
+
+	def GetAddr(self, addr):
+		for i in range(self.count):
+			if self.heap[i].addr == addr:
+				return self.heap[i]
+		return None
+
+	def FUN_1005da10(self, vm, opid, inz, mode):
+		self.unk = 1
+		opz = self.heap[self.count - 1].instr
+		uvr4 = 0
+		if opz.ID == OP_MOV:
+			return (0, inz)
+		elif opz.ID == OP_CMP:
+			return (1, inz)
+		elif opz.ID == OP_TEST:
+			return (0x101, inz)
+		elif opz.ID == OP_OR and opz.operand[0].TID() == TID_REG and opz.operand[1].TID() == TID_REG and \
+				opz.operand[0].GetB(0) == opz.operand[1].GetB(0):
+			return (1, inz)
+		else:
+			(a, b, val) = self.FUN_1005d720()
+			if a == 0:
+				self.Simple(vm, 0xfffe, mode)
+				(a, b, val) = self.FUN_1005d720()
+				if a == 0:
+					return (0, inz)
+			l = b
+			FLG = EFlags()
+			while l < self.count - 1:
+				op = self.heap[l].instr
+				if opz.operand[0].TID() == 1:
+					CalcEFlags(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value, FLG)
+					_, val = ComputeVal(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value)
+				else:
+					CalcEFlags(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value, FLG)
+					_, val = ComputeVal(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value)
+
+				inz = FUN_1005ddf0(opid, FLG)
+				l += 1
+		self.unk = 0
+		return (1, inz)
+
+	def NextOp0Reg(self, i, reg):
+		t = i
+		while i < self.count:
+			cmd = self.heap[i]
+			if cmd.instr.operand[0].ID == ID_REG and cmd.instr.operand[0].GetB(0) == reg:
+				return (i, cmd)
+			i += 1
+		return (t, None)
+
+	def NextOp1MemReg(self, i, reg):
+		t = i
+		while i < self.count:
+			cmd = self.heap[i]
+			if cmd.instr.operand[1].TID() == TID_MEM and cmd.instr.operand[1].GetB(1) == reg:
+				return (i, cmd)
+			i += 1
+		return (t, None)
+
+	def NextOp0MemReg(self, i, reg):
+		t = i
+		while i < self.count:
+			cmd = self.heap[i]
+			if cmd.instr.operand[0].TID() == TID_MEM and cmd.instr.operand[0].GetB(1) == reg:
+				return (i, cmd)
+			i += 1
+		return (t, None)
 
 CMDSimpler = Defus()
 	

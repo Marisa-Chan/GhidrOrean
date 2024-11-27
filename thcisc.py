@@ -606,41 +606,6 @@ class CISC(VM):
                                                                                              self.IatCount))
         print("")
 
-    def FUN_1005da10(self, opid, inz, mode):
-        CMDSimpler.unk = 1
-        opz = CMDSimpler.heap[CMDSimpler.count - 1].instr
-        uvr4 = 0
-        if opz.ID == OP_MOV:
-            return (0, inz)
-        elif opz.ID == OP_CMP:
-            return (1, inz)
-        elif opz.ID == OP_TEST:
-            return (0x101, inz)
-        elif opz.ID == OP_OR and opz.operand[0].TID() == 1 and opz.operand[1].TID() == 1 and \
-                opz.operand[0].GetB(0) == opz.operand[1].GetB(0):
-            return (1, inz)
-        else:
-            (a, b, val) = CMDSimpler.FUN_1005d720()
-            if a == 0:
-                CMDSimpler.Simple(self, 0xfffe, mode)
-                (a, b, val) = CMDSimpler.FUN_1005d720()
-                if a == 0:
-                    return (0, inz)
-            l = b
-            FLG = EFlags()
-            while l < CMDSimpler.count - 1:
-                op = CMDSimpler.heap[l].instr
-                if opz.operand[0].TID() == 1:
-                    CalcEFlags(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value, FLG)
-                    _, val = ComputeVal(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value)
-                else:
-                    CalcEFlags(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value, FLG)
-                    _, val = ComputeVal(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value)
-
-                inz = FUN_1005ddf0(opid, FLG)
-                l += 1
-        CMDSimpler.unk = 0
-        return (1, inz)
 
     def StoreVmHandle(self, p):
         lst = [CmdEntry()] * 10
@@ -2407,7 +2372,7 @@ class CISC(VM):
                     CMDSimpler.Add(rk, opAdr)
                     break
             elif rk.ID >= OP_JA and rk.ID <= OP_JS:
-                (a, b) = self.FUN_1005da10(rk.ID, False, 'A')
+                (a, b) = CMDSimpler.FUN_1005da10(self, rk.ID, False, 'A')
                 if (a & 0xFF) == 0:
                     print("Follow Jump?")
                     b = False
@@ -2461,7 +2426,7 @@ class CISC(VM):
                         CMDSimpler.Add(rk, opAdr)
                         break
                 elif rk.ID >= OP_JA and rk.ID <= OP_JS:
-                    (a, b) = self.FUN_1005da10(rk.ID, False, 'A')
+                    (a, b) = CMDSimpler.FUN_1005da10(self, rk.ID, False, 'A')
                     if (a & 0xFF) == 0:
                         print("Follow Jump?")
                         b = False
