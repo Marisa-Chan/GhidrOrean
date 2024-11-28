@@ -3072,10 +3072,10 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 64].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x33
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM32
+                rk.operand[1].SetB(1, R_EDI)
             return 67
         elif i + 67 <= self.countVops and self.CheckVopSeq(i, \
           (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  #0
@@ -3089,10 +3089,10 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 64].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0x66
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x32
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM16
+                rk.operand[1].SetB(1, R_EDI)
             return 67
         elif i + 67 <= self.countVops and self.CheckVopSeq(i, \
           (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  #0
@@ -3106,10 +3106,10 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 64].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x31
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM8
+                rk.operand[1].SetB(1, R_EDI)
             return 67
         elif i + 63 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3123,10 +3123,10 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x33
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM32
+                rk.operand[1].SetB(1, R_ESI)
             return 63
         elif i + 63 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3140,10 +3140,10 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0x66
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x32
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM16
+                rk.operand[1].SetB(1, R_ESI)
             return 63
         elif i + 63 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3157,10 +3157,10 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x31
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM8
+                rk.operand[1].SetB(1, R_ESI)
             return 63
         elif i + 44 <= self.countVops and self.CheckVopSeq(i, \
           (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3172,8 +3172,8 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 41].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
             return 44
         elif i + 44 <= self.countVops and self.CheckVopSeq(i, \
           (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3185,8 +3185,8 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 41].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0x66
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
             return 44
         elif i + 44 <= self.countVops and self.CheckVopSeq(i, \
           (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3198,8 +3198,8 @@ class CISC(VM):
                 rk.opfx = 0xf3 - ((vp[i + 41].pushval & 0xFFFFFF00) != 0x800)
                 rk.op66 = 0
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
             return 44
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3210,8 +3210,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESI)
             return 40
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3222,8 +3222,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0x66
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_ESI)
             return 40
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3234,8 +3234,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_ESI)
             return 40
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3246,8 +3246,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
             return 40
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3258,8 +3258,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0x66
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
             return 40
         elif i + 40 <= self.countVops and self.CheckVopSeq(i, \
         (0x155, 0x156, 7, 1, 9, 4, 0x26, 1, 9, 0x1c,  # 0
@@ -3270,8 +3270,8 @@ class CISC(VM):
                 rk.opfx = 0xf3
                 rk.op66 = 0
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
             return 40
         elif i + 53 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xc, 7, 1, 0xc, 0x39, 0x155, 0x156, 7, #0
@@ -3284,10 +3284,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x33
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM32
+                rk.operand[1].SetB(1, R_EDI)
             return 53
         elif i + 53 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xb, 7, 1, 0xb, 0x38, 0x155, 0x156, 7, #0
@@ -3300,10 +3300,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0x66
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x32
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM16
+                rk.operand[1].SetB(1, R_EDI)
             return 53
         elif i + 53 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xa, 7, 1, 0xa, 0x37, 0x155, 0x156, 7, #0
@@ -3316,10 +3316,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_CMPS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x63)
-                rk.operand[1].ID = 0x31
-                rk.operand[1].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_ESI)
+                rk.operand[1].ID = ID_MEM8
+                rk.operand[1].SetB(1, R_EDI)
             return 53
         elif i + 52 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xc, 7, 1, 0x18, 0x155, 0x156, 7, 1, #0
@@ -3332,10 +3332,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x33
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM32
+                rk.operand[1].SetB(1, R_ESI)
             return 52
         elif i + 52 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xb, 7, 1, 0x17, 0x155, 0x156, 7, 1, #0
@@ -3348,10 +3348,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0x66
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x32
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM16
+                rk.operand[1].SetB(1, R_ESI)
             return 52
         elif i + 52 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xa, 7, 1, 0x16, 0x155, 0x156, 7, 1, #0
@@ -3364,10 +3364,10 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_MOVS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
-                rk.operand[1].ID = 0x31
-                rk.operand[1].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
+                rk.operand[1].ID = ID_MEM8
+                rk.operand[1].SetB(1, R_ESI)
             return 52
         elif i + 30 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xc, 7, 1, 0xc, 0x39, 0x155, 0x156, 7, #0
@@ -3377,8 +3377,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
             return 30
         elif i + 30 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xb, 7, 1, 0xb, 0x38, 0x155, 0x156, 7, #0
@@ -3388,8 +3388,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0x66
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
             return 30
         elif i + 30 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xa, 7, 1, 0xa, 0x37, 0x155, 0x156, 7, #0
@@ -3399,8 +3399,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_SCAS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
             return 30
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xc, 0, 1, 0x18, 0x155, 0x156, 7, 1, #0
@@ -3410,8 +3410,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESI)
             return 29
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xb, 0, 1, 0x17, 0x155, 0x156, 7, 1, #0
@@ -3421,8 +3421,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0x66
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_ESI)
             return 29
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (7, 1, 0xa, 0, 1, 0x16, 0x155, 0x156, 7, 1, #0
@@ -3432,8 +3432,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_LODS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x63)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_ESI)
             return 29
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xc, 7, 1, 0x18, 0x155, 0x156, 7, 1, #0
@@ -3443,8 +3443,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_EDI)
             return 29
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xb, 7, 1, 0x17, 0x155, 0x156, 7, 1, #0
@@ -3454,8 +3454,8 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0x66
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x32
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM16
+                rk.operand[0].SetB(1, R_EDI)
             return 29
         elif i + 29 <= self.countVops and self.CheckVopSeq(i, \
         (0, 1, 0xa, 7, 1, 0x16, 0x155, 0x156, 7, 1, #0
@@ -3465,14 +3465,14 @@ class CISC(VM):
                 rk.opfx = 0
                 rk.op66 = 0
                 rk.ID = OP_STOS
-                rk.operand[0].ID = 0x31
-                rk.operand[0].SetB(1, 0x73)
+                rk.operand[0].ID = ID_MEM8
+                rk.operand[0].SetB(1, R_EDI)
             return 29
         elif i + 7 <= self.countVops and self.CheckVopSeq(i, \
              (7, 1, 0x153, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(2, (self.TRID[ vp[i + 2].pushval ] << 4) | 3) #0x153
             return 7
@@ -3480,7 +3480,7 @@ class CISC(VM):
              (7, 1, 0x153, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(2, (self.TRID[ vp[i + 2].pushval ] << 4) | 3) #0x153
             return 7
@@ -3488,7 +3488,7 @@ class CISC(VM):
              (7, 1, 0x153, 9, 4, 6, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(2, (self.TRID[ vp[i + 2].pushval ] << 4) | 3) #0x153
                 rk.operand[0].val2 = vp[i + 4].pushval
@@ -3497,7 +3497,7 @@ class CISC(VM):
              (7, 1, 0x153, 9, 4, 6, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(2, (self.TRID[ vp[i + 2].pushval ] << 4) | 3) #0x153
                 rk.operand[0].val2 = vp[i + 4].pushval
@@ -3506,23 +3506,23 @@ class CISC(VM):
              (0x14e, 9, 4, 6, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x43)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESP)
                 rk.operand[0].val2 = vp[i + 2].pushval
             return 9
         elif i + 9 <= self.countVops and self.CheckVopSeq(i, \
              (0x14e, 9, 4, 6, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
-                rk.operand[0].SetB(1, 0x43)
+                rk.operand[0].ID = ID_MEM32
+                rk.operand[0].SetB(1, R_ESP)
                 rk.operand[0].val2 = vp[i + 2].pushval
             return 9
         elif i + 14 <= self.countVops and self.CheckVopSeq(i, \
              (7, 1, 9, 4, 0x15f, 1, 0, 4, 6, 1,     0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(2, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(3, vp[i + 3].pushval & 0xFF ) #4
                 rk.operand[0].val2 = vp[i + 7].pushval
@@ -3531,7 +3531,7 @@ class CISC(VM):
              (7, 1, 9, 4, 0x15f, 1, 0, 4, 6, 1,     0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(2, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].SetB(3, vp[i + 3].pushval & 0xFF ) #4
                 rk.operand[0].val2 = vp[i + 7].pushval
@@ -3540,7 +3540,7 @@ class CISC(VM):
              (7, 1, 9, 4, 6, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].val2 = vp[i + 3].pushval
             return 10
@@ -3548,7 +3548,7 @@ class CISC(VM):
              (7, 1, 9, 4, 6, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[ vp[i].pushval ] << 4) | 3) #7
                 rk.operand[0].val2 = vp[i + 3].pushval
             return 10
@@ -3556,7 +3556,7 @@ class CISC(VM):
              (7, 1, 9, 4, 0x15f, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(2, (self.TRID[vp[i].pushval] << 4) | 3)  # 7
                 rk.operand[0].SetB(3, vp[i + 3].pushval & 0xFF)  # 4
             return 10
@@ -3564,7 +3564,7 @@ class CISC(VM):
              (7, 1, 9, 4, 0x15f, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(2, (self.TRID[vp[i].pushval] << 4) | 3)  # 7
                 rk.operand[0].SetB(3, vp[i + 3].pushval & 0xFF)  # 4
             return 10
@@ -3572,63 +3572,63 @@ class CISC(VM):
              (7, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[vp[i].pushval] << 4) | 3)  # 7
             return 6
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (7, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].SetB(1, (self.TRID[vp[i].pushval] << 4) | 3)  # 7
             return 6
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (4, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].val2 = vp[i].pushval
             return 6
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (4, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x33
+                rk.operand[0].ID = ID_MEM32
                 rk.operand[0].val2 = vp[i].pushval
             return 6
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (0, 1, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x10
+                rk.operand[0].ID = ID_REG
                 rk.operand[0].SetB(0, (self.TRID[vp[i].pushval] << 4) | 3)
             return 6
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (0, 1, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x10
+                rk.operand[0].ID = ID_REG
                 rk.operand[0].SetB(0, (self.TRID[vp[i].pushval] << 4) | 3)
             return 6
         elif i + 5 <= self.countVops and self.CheckVopSeq(i, \
              (0x14e, 0x15a, 0x7b, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x10
-                rk.operand[0].SetB(0, 0x43)
+                rk.operand[0].ID = ID_REG
+                rk.operand[0].SetB(0, R_ESP)
             return 5
         elif i + 5 <= self.countVops and self.CheckVopSeq(i, \
              (0x14e, 0x15a, 0xa3, 0xc, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x10
-                rk.operand[0].SetB(0, 0x43)
+                rk.operand[0].ID = ID_REG
+                rk.operand[0].SetB(0, R_ESP)
             return 5
         elif i + 6 <= self.countVops and self.CheckVopSeq(i, \
              (4, 1, 0x15a, 0x7b, 9, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
             return 6
@@ -3637,7 +3637,7 @@ class CISC(VM):
              (4, 1, 0x15a, 0xa3, 9, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
             return 6
@@ -3646,7 +3646,7 @@ class CISC(VM):
              (4, 1, 0x15a, 9, 0x154)):
             if rk:
                 rk.ID = OP_CALL
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
             return 5
@@ -3654,7 +3654,7 @@ class CISC(VM):
              (4, 1, 9, 0x155, 0x156, 1)):
             if rk:
                 rk.ID = XrkAsm.MnemToOP(  self.GetJxx(vp[i + 3].pushval)  )
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
             return 6
@@ -3662,7 +3662,7 @@ class CISC(VM):
              (4, 1, 9, 0x154)):
             if rk:
                 rk.ID = OP_JMP
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
             return 4
@@ -3670,7 +3670,7 @@ class CISC(VM):
              (4, 1, 0x155, 0x156)):
             if rk:
                 rk.ID = XrkAsm.MnemToOP(  self.GetJxx(vp[i + 2].pushval)  )
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = 0
                 rk.operand[0].value = vp[i + 3].pushval
                 vp[i].addr = vp[i + 3].addr
@@ -3679,7 +3679,7 @@ class CISC(VM):
              (4, 1, 0x154)):
             if rk:
                 rk.ID = OP_JMP
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = 0
                 rk.operand[0].value = vp[i + 2].pushval
                 vp[i].addr = vp[i + 2].addr
@@ -3688,7 +3688,7 @@ class CISC(VM):
              (0x155, 0x156)):
             if rk:
                 rk.ID = XrkAsm.MnemToOP(  self.GetJxx(vp[i].pushval)  )
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = 0
                 rk.operand[0].value = vp[i + 1].pushval
                 vp[i].addr = vp[i + 1].addr
@@ -3705,7 +3705,7 @@ class CISC(VM):
               vp[i+1].addr + 5 + vp[i+1].pushval == self.vpaddr:
             if rk:
                 rk.ID = OP_JMP
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].val2 = vp[i].pushval
                 rk.operand[0].value = vp[i].pushval
                 vp[i].addr = vp[i + 1].addr
@@ -3715,7 +3715,7 @@ class CISC(VM):
               vp[i+1].addr + 5 + vp[i+1].pushval == self.vpaddr:
             if rk:
                 rk.ID = OP_RETN
-                rk.operand[0].ID = 0x22
+                rk.operand[0].ID = ID_VAL16
                 rk.operand[0].value = vp[i].pushval
                 vp[i].addr = vp[i + 1].addr
             return 2
@@ -3727,7 +3727,7 @@ class CISC(VM):
         elif i + 1 <= self.countVops and vp[i].ID == 0x154:
             if rk:
                 rk.ID = OP_JMP
-                rk.operand[0].ID = 0x23
+                rk.operand[0].ID = ID_VAL32
                 rk.operand[0].value = vp[i].pushval
                 rk.operand[0].val2 = 0
             return 1
@@ -3863,22 +3863,22 @@ class CISC(VM):
                         for aa, arg in enumerate(casm.args):
                             t = (arg.src >> 4) & 0xF
                             if t == 1:
-                                rk.operand[aa].ID = 0x10
+                                rk.operand[aa].ID = ID_REG
                                 if vp[i + arg.reg].ID in range(0x14e, 0x153):
-                                    rk.operand[aa].SetB(0, 0x40 | (arg.src & 0xF))
+                                    rk.operand[aa].SetB(0, 0x40 | (arg.src & 0xF)) ##xSP
                                 elif arg.notHave == 0:
                                     rk.operand[aa].SetB(0, (self.TRID[vp[i + arg.reg].pushval] << 4) | (arg.src & 0xF))
                                 else:
                                     rk.operand[aa].SetB(0, ((self.TRID[vp[i + arg.reg].pushval] + 4) << 4) | (arg.src & 0xF))
                             elif t == 2:
-                                rk.operand[aa].ID = (arg.src & 0xF) | 0x20
+                                rk.operand[aa].ID = (arg.src & 0xF) | ID_VALx
                                 rk.operand[aa].value = vp[i + arg.cons].pushval
                                 if rk.ID in self.ARYTHM and not IsSignedOverflow(rk.operand[aa].value, 8):
-                                    rk.operand[aa].ID = 0x21
+                                    rk.operand[aa].ID = ID_VAL8
                                 if rk.ID == OP_PUSH and not IsSignedOverflow(rk.operand[aa].value, 8):
-                                    rk.operand[aa].ID = 0x21
+                                    rk.operand[aa].ID = ID_VAL8
                                 if rk.ID == OP_IMUL and not IsSignedOverflow(rk.operand[aa].value, 8):
-                                    rk.operand[aa].ID = 0x21
+                                    rk.operand[aa].ID = ID_VAL8
                                 if rk.ID == OP_RETN and rk.operand[aa].value == 0:
                                     rk.operand[aa].ID = 0
                                 if rk.ID == OP_TEST:
@@ -3887,10 +3887,10 @@ class CISC(VM):
                                     elif rk.operand[aa].ID & 0xf == 2:
                                         rk.operand[aa].value = rk.operand[aa].value & 0xFFFF
                             elif t == 3:
-                                rk.operand[aa].ID = (arg.src & 0xf) | 0x30
+                                rk.operand[aa].ID = (arg.src & 0xf) | ID_MEMx
                                 if casm.mr1:
                                     if vp[i + arg.v0].ID in range(0x14e, 0x153):
-                                        rk.operand[aa].SetB(1, 0x43)
+                                        rk.operand[aa].SetB(1, R_ESP)
                                     else:
                                         rk.operand[aa].SetB(1, (self.TRID[vp[i + arg.v0].pushval] << 4) | 3)
                                 if casm.mr2:
@@ -3901,42 +3901,42 @@ class CISC(VM):
                                     rk.operand[aa].val2 = vp[i + arg.v3].pushval
 
                     if bv3:
-                        if rk.operand[1].TID() == 1:
+                        if rk.operand[1].TID() == TID_REG:
                             rk.operand[1].value = (rk.operand[1].value & ~0xF) | 1
-                        elif rk.operand[1].TID() == 2:
+                        elif rk.operand[1].TID() == TID_VAL:
                             rk.operand[1].ID = (rk.operand[1].ID & ~0xF) | 1
 
                     if bv4:
                         if stdID in (128, 72):
                             rk.op66 = 0x66
-                            if rk.operand[0].TID() == 1:
+                            if rk.operand[0].TID() == TID_REG:
                                 rk.operand[0].value = (rk.operand[0].value & ~0xF) | 2
                             else:
                                 rk.operand[0].ID = (rk.operand[0].ID & ~0xF) | 2
 
-                            if rk.operand[1].TID() == 1:
+                            if rk.operand[1].TID() == TID_REG:
                                 rk.operand[1].value = (rk.operand[1].value & ~0xF) | 1
                             else:
                                 rk.operand[1].ID = (rk.operand[1].ID & ~0xF) | 1
                         elif stdID in (129, 73):
                             rk.op66 = 0
-                            if rk.operand[0].TID() == 1:
+                            if rk.operand[0].TID() == TID_REG:
                                 rk.operand[0].value = (rk.operand[0].value & ~0xF) | 3
                             else:
                                 rk.operand[0].ID = (rk.operand[0].ID & ~0xF) | 3
 
-                            if rk.operand[1].TID() == 1:
+                            if rk.operand[1].TID() == TID_REG:
                                 rk.operand[1].value = (rk.operand[1].value & ~0xF) | 1
                             else:
                                 rk.operand[1].ID = (rk.operand[1].ID & ~0xF) | 1
                         elif stdID in (133, 77):
                             rk.op66 = 0
-                            if rk.operand[0].TID() == 1:
+                            if rk.operand[0].TID() == TID_REG:
                                 rk.operand[0].value = (rk.operand[0].value & ~0xF) | 3
                             else:
                                 rk.operand[0].ID = (rk.operand[0].ID & ~0xF) | 3
 
-                            if rk.operand[1].TID() == 1:
+                            if rk.operand[1].TID() == TID_REG:
                                 rk.operand[1].value = (rk.operand[1].value & ~0xF) | 2
                             else:
                                 rk.operand[1].ID = (rk.operand[1].ID & ~0xF) | 2
