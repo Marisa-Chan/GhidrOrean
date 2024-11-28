@@ -2827,7 +2827,7 @@ class CISC(VM):
             self.TRNM[self.Vops[16].pushval] = "VM_EDX"
             self.TRNM[self.Vops[19].pushval] = "VM_ECX"
             self.TRNM[self.Vops[22].pushval] = "VM_EAX"
-            self.TRNM[self.Vops[26].pushval] = "VM_FLAGS"
+            self.TRNM[self.Vops[25].pushval] = "VM_FLAGS"
             self.TRID[self.Vops[0].pushval] = 7
             self.TRID[self.Vops[3].pushval] = 6
             self.TRID[self.Vops[6].pushval] = 5
@@ -2836,7 +2836,7 @@ class CISC(VM):
             self.TRID[self.Vops[16].pushval] = 2
             self.TRID[self.Vops[19].pushval] = 1
             self.TRID[self.Vops[22].pushval] = 0
-            self.TRID[self.Vops[26].pushval] = 4
+            self.TRID[self.Vops[25].pushval] = 4
 
     def RemoveJunk(self):
         while True:
