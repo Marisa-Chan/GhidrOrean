@@ -5,6 +5,22 @@ class OperandInfo:
 	ID = 0
 	value = 0
 	val2 = 0
+
+	def Base(self):
+		if self.TID() == TID_REG:
+			return self.GetB(0)
+		elif self.TID() == TID_MEM:
+			return self.GetB(1)
+		return -1
+
+
+
+	def XBase(self):
+		if self.TID() == TID_REG:
+			return self.GetB(0) >> 4
+		elif self.TID() == TID_MEM:
+			return self.GetB(1) >> 4
+		return -1
 	
 	def SetB(self, b, val):
 		val = UB(val)
@@ -22,7 +38,12 @@ class OperandInfo:
 		M = M << (b * 8)
 		self.value = (self.value & M) | val
 		
-		
+	def Size(self):
+		if self.ID == ID_REG:
+			return self.value & 0xF
+		else:
+			return self.ID & 0xF
+
 	
 	def GetB(self, b):
 		return 0xFF & ((self.value & 0xFFFFFFFF) >> (b * 8))
@@ -37,11 +58,26 @@ class OperandInfo:
 		t.val2 = self.val2
 		return t
 
+	def IsReg8(self):
+		return self.ID == ID_REG and (self.GetB(0) & 0xF) == 1
+
+	def IsReg16(self):
+		return self.ID == ID_REG and (self.GetB(0) & 0xF) == 2
+
+	def IsReg32(self):
+		return self.ID == ID_REG and (self.GetB(0) & 0xF) == 3
+
 	def IsReg(self, reg):
 		return self.ID == ID_REG and self.GetB(0) == reg
 
+	def IsRegNot(self, reg):
+		return self.ID == ID_REG and self.GetB(0) != reg
+
 	def IsRegIn(self, regz):
 		return self.ID == ID_REG and self.GetB(0) in regz
+
+	def IsMem32Base(self, base):
+		return self.ID == ID_MEM32 and self.GetB(1) == base
 
 	def IsMem32R(self, r1, r2, mult):
 		return self.ID == ID_MEM32 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult
@@ -49,11 +85,20 @@ class OperandInfo:
 	def IsMem32Roff(self, r1, r2, mult, off):
 		return self.ID == ID_MEM32 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult and self.val2 == off
 
+	def IsMem16Base(self, base):
+		return self.ID == ID_MEM16 and self.GetB(1) == base
+
 	def IsMem16R(self, r1, r2, mult):
 		return self.ID == ID_MEM16 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult
 
-	def IsMem8Roff(self, r1, r2, mult, off):
-		return self.ID == ID_MEM8 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult and self.val2 == off
+	def IsMem16Roff(self, r1, r2, mult, off):
+		return self.ID == ID_MEM16 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult and self.val2 == off
+
+	def IsMem8Base(self, base):
+		return self.ID == ID_MEM8 and self.GetB(1) == base
+
+	def IsMem8Roff(self, r1, r2, mult):
+		return self.ID == ID_MEM8 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult
 
 	def IsMem8Roff(self, r1, r2, mult, off):
 		return self.ID == ID_MEM8 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult and self.val2 == off

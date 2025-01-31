@@ -9,7 +9,7 @@ CISC/RISC/FISH/TIGER dirs are from original 1.8 olly plugin
 
 * FISH not complete
 
-* TIGER not complete
+* TIGER in progress
 
 
 

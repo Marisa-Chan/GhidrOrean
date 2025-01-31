@@ -2372,7 +2372,7 @@ class CISC(VM):
                     CMDSimpler.Add(rk, opAdr)
                     break
             elif rk.ID >= OP_JA and rk.ID <= OP_JS:
-                (a, b) = CMDSimpler.FUN_1005da10(self, rk.ID, False, 'A')
+                (a, b) = CMDSimpler.EvaluateBranch(self, rk.ID, False, 'A')
                 if (a & 0xFF) == 0:
                     print("Follow Jump?")
                     b = False
@@ -2426,7 +2426,7 @@ class CISC(VM):
                         CMDSimpler.Add(rk, opAdr)
                         break
                 elif rk.ID >= OP_JA and rk.ID <= OP_JS:
-                    (a, b) = CMDSimpler.FUN_1005da10(self, rk.ID, False, 'A')
+                    (a, b) = CMDSimpler.EvaluateBranch(self, rk.ID, False, 'A')
                     if (a & 0xFF) == 0:
                         print("Follow Jump?")
                         b = False

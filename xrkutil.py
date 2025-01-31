@@ -143,4 +143,3 @@ def GetMemBlockInfo(addr):
 
 def SPLIT(s, d):
 	return filter(None, re.split("|".join(d), s) )
-	

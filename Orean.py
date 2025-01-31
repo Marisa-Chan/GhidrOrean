@@ -15,6 +15,8 @@ from xrkutil import *
 import thrisc
 import thcisc
 import thfish
+import thtiger
+from thobfus import *
 
 WRKDIR = "/home/marisa/ghidra_scripts"
 
@@ -29,7 +31,7 @@ def GetVMSig(addr):
 	
 	#PUSH PUSH JMP
 	if UB(bts[0]) == 0x68 and UB(bts[5]) == 0x68 and UB(bts[10]) == 0xe9:
-		print("Fish machine found...")
+		print("Wild machine found...")
 		VMTYPE = 5
 		return 5
 	elif UB(bts[0]) == 0x68 and UB(bts[5]) == 0xe9:
@@ -104,27 +106,50 @@ def main(addr):
 			print("ok {:08x}".format(vm.pushValue))
 			vm.DeVirt(0x10000)
 	elif vmSig == 5:
-		vm = thfish.FISH(WRKDIR)
+		vm = thtiger.TIGER(WRKDIR)
 
 		if not vm.Step0(addr):
 			return
 
 		if not vm.Step1(vm.VMAddr):
-			print("[AntiFISH] Failed to load zero data")
+			print("[Wild] Failed to load zero data")
 			return
 
 		if not vm.Step2():
-			print("[AntiFISH] Failed to process zero data")
+			print("[Wild] Failed to process zero data")
 			return
 
 
 		if not vm.KeyWalk():
-			print("[AntiFISH] Failed keywalk searching")
+			print("[Wild] Failed keywalk searching")
 			return
 
 		if not vm.DeofusVM():
-			print("[AntiFISH] Can\'t deofuscate virtual machine")
+			print("[Wild] Can\'t deofuscate virtual machine")
 			return
+
+		if not vm.Trace():
+			print("[Wild] Can\'t trace")
+			return
+	elif vmSig == 0:
+		vm = thtiger.TIGER(WRKDIR)
+
+
+		mblock = GetMemBlockInfo(begaddr)
+		if not mblock:
+			print("Can't get mem block at {:08X}".format(begaddr))
+			return False
+
+		print("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
+
+		vm.mblk.data = GetBytes(mblock.addr, mblock.size)
+		vm.mblk.addr = mblock.addr
+		vm.mblk.size = mblock.size
+
+		vm.DumpHandler(begaddr, 1)
+
+		for l in CMDSimpler.GetListing(True, False):
+			print("{}".format(l))
 
 
 

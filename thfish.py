@@ -582,7 +582,7 @@ class FISH(VM):
                 else:
                     b = 0
                     if J == 1:
-                        a, b = CMDSimpler.FUN_1005da10(self, rk.ID, False, 'C')
+                        a, b = CMDSimpler.EvaluateBranch(self, rk.ID, False, 'C')
                         if (a & 0xFF) == 0:
                             print("Follow Jump?")
                             b = False
@@ -715,7 +715,7 @@ class FISH(VM):
                        opj.operand[0].TID() == TID_MEM and\
                        opj.operand[0].GetB(1) == R_EBP and opj.operand[0].GetB(2) == 0 and opj.operand[0].GetB(3) == 0 and\
                        self.IsIdxOpEbpKey(j, 0):
-                        CMDSimpler.heap[j].unk2 = op.operand[1].val2 | 0x80000000
+                        CMDSimpler.heap[j].keyData = op.operand[1].val2 | 0x80000000
                     j += 1
 
             i += 1
@@ -740,7 +740,7 @@ class FISH(VM):
     def FUN_10042380(self, i, opt, p3, u3, p5, dbg = False):
         if p3 == -1:
             if p5 == 1 and i >= 0 and i < CMDSimpler.count:
-                CMDSimpler.heap[i].unk3 = u3
+                CMDSimpler.heap[i].index = u3
 
             op = CMDSimpler.heap[i].instr
             t = 0
@@ -758,17 +758,17 @@ class FISH(VM):
 
                     if opj.ID in (OP_MOV, OP_MOVSX, OP_MOVZX):
                         if opj.operand[0].TID() == TID_REG and (opj.operand[0].GetB(0) >> 4) == t:
-                            CMDSimpler.heap[j].unk3 = u3
+                            CMDSimpler.heap[j].index = u3
                             bv2 = True
                             if opj.operand[1].TID() == TID_REG and opj.operand[1].GetB(0) not in (R_ESP, R_EBP):
                                 if opj.ID == OP_MOV and opj.operand[0].GetB(0) == opj.operand[1].GetB(0):
-                                    CMDSimpler.heap[j].unk3 = 0
+                                    CMDSimpler.heap[j].index = 0
                                     bv2 = False
                                 else:
                                     self.FUN_10042380(j, 1, -1, u3, p5)
                     elif opj.ID == OP_POP:
                         if opj.operand[0].TID() == TID_REG and (opj.operand[0].GetB(0) >> 4) == t:
-                            CMDSimpler.heap[j].unk3 = u3
+                            CMDSimpler.heap[j].index = u3
                             bv2 = True
                     else:
                         if opj.ID in (OP_CMP, OP_TEST):
@@ -778,7 +778,7 @@ class FISH(VM):
                                 continue
 
                         if opj.operand[0].TID() == TID_REG and (opj.operand[0].GetB(0) >> 4) == t:
-                            CMDSimpler.heap[j].unk3 = u3
+                            CMDSimpler.heap[j].index = u3
                             if opj.operand[1].TID() == TID_REG and opj.operand[1].GetB(0) not in (R_ESP, R_EBP):
                                 self.FUN_10042380(j, 1, -1, u3, p5)
                     j -= 1
@@ -817,7 +817,7 @@ class FISH(VM):
                     self.FUN_10042380(i, 0, -1, 1, 1)
             elif op.ID in (OP_CMP, OP_TEST):
                 if loc10 != -1 and loc10 + 1 == i:
-                    CMDSimpler.heap[i].unk3 = 1
+                    CMDSimpler.heap[i].index = 1
                 else:
                     op1 = CMDSimpler.heap[i + 1].instr
                     if op1.ID == OP_PUSHF or op1.ID == 0 or (op1.ID > OP_JMP and op1.ID < OP_JCXZ):
@@ -825,21 +825,21 @@ class FISH(VM):
                         if op.operand[1].TID() != TID_VAL:
                             self.FUN_10042380(i, 1, -1, 1, 1)
             elif op.ID in range(OP_JA, OP_JCXZ):
-                CMDSimpler.heap[i].unk3 = 1
+                CMDSimpler.heap[i].index = 1
                 if i > 0:
                     self.FUN_10042380(i  - 1, 0, -1, 1, 1)
                     if  CMDSimpler.heap[i - 1].instr.operand[1].TID() == TID_REG:
                         self.FUN_10042380(i - 1, 1, -1, 1, 1)
             elif op.ID == OP_MOVS:
-                CMDSimpler.heap[i].unk3 = 1
+                CMDSimpler.heap[i].index = 1
                 self.FUN_10042380(i, 0, -1, 1, 1)
                 self.FUN_10042380(i, 1, -1, 1, 1)
             elif op.ID == OP_POP:
-                CMDSimpler.heap[i].unk3 = 1
+                CMDSimpler.heap[i].index = 1
                 if op.operand[0].TID() == TID_MEM:
                     self.FUN_10042380(i, 0, -1, 1, 1)
             elif op.ID == OP_PUSHF:
-                CMDSimpler.heap[i].unk3 = 1
+                CMDSimpler.heap[i].index = 1
                 if loc10 + 2 != i:
                     op1 = CMDSimpler.heap[i - 1].instr
                     if op1.operand[0].TID() == TID_REG:
@@ -849,7 +849,7 @@ class FISH(VM):
                     if op1.operand[1].TID() == TID_REG:
                         self.FUN_10042380(i - 1, 1, -1, 1, 1)
             elif op.ID == OP_RETN:
-                CMDSimpler.heap[i].unk3 = 1
+                CMDSimpler.heap[i].index = 1
             elif op.ID != 0:
                 if op.ID == OP_NOT:
                     loc10 = i
@@ -872,28 +872,28 @@ class FISH(VM):
                        op.operand[1].val2 == self.val7:
                         locc = 1
                     if op.operand[0].ID == 0:
-                        CMDSimpler.heap[i].unk3 = 1
+                        CMDSimpler.heap[i].index = 1
                     elif op.operand[0].TID() == TID_VAL:
-                        CMDSimpler.heap[i].unk3 = 1
+                        CMDSimpler.heap[i].index = 1
                     elif op.operand[0].TID() == TID_MEM:
-                        CMDSimpler.heap[i].unk3 = 1
+                        CMDSimpler.heap[i].index = 1
                         self.FUN_10042380(i, 0, -1, 1, 1)
                         if op.operand[1].TID() == TID_REG:
-                            CMDSimpler.heap[i].unk3 = 1
+                            CMDSimpler.heap[i].index = 1
                             self.FUN_10042380(i, 1, -1, 1, 1)
                     elif op.operand[1].TID() == TID_MEM:
-                        CMDSimpler.heap[i].unk3 = 1
+                        CMDSimpler.heap[i].index = 1
                         self.FUN_10042380(i, 1, -1, 1, 1)
                     else:
                         if op.ID == OP_PUSH and op.operand[0].TID() == TID_REG:
-                            CMDSimpler.heap[i].unk3 = 1
+                            CMDSimpler.heap[i].index = 1
                             self.FUN_10042380(i, 0, -1, 1, 1)
                         if op.operand[0].TID() == TID_REG and (op.operand[0].GetB(0) >> 4) == 4: # xSP
-                            CMDSimpler.heap[i].unk3 = 1
+                            CMDSimpler.heap[i].index = 1
             i += 1
 
         for i in range(CMDSimpler.count):
-            if CMDSimpler.heap[i].unk3 == 0:
+            if CMDSimpler.heap[i].index == 0:
                 CMDSimpler.heap[i].instr.ID = 0
 
         CMDSimpler.Cleaner()
@@ -1055,7 +1055,7 @@ class FISH(VM):
             print("EIP")
             return False
 
-        h.idx1 = i
+        h.flowReadIndex = i
         reg = cmds[i].instr.operand[0].GetB(0)
 
         while True:
@@ -1164,31 +1164,31 @@ class FISH(VM):
             op = cmd.instr
 
             key = FKEY()
-            if cmd.unk2 & 0x80000000 == 0x80000000:
+            if cmd.keyData & 0x80000000 == 0x80000000:
                 if op.operand[0].TID() == TID_MEM:
                     key.flg1 = 0
                     key.flg2 = 1
                     key.koff1 = op.operand[0].val2 & 0xFFFF
                     key.ID = op.ID
-                    key.idx = cmd.unk3
+                    key.idx = cmd.index
                     key.oprID = (op.operand[1].ID & 0xF0) | (op.operand[0].ID & 0xF)
-                    key.koff2 = cmd.unk2 & 0x7FFFFFFF
+                    key.koff2 = cmd.keyData & 0x7FFFFFFF
                 else:
                     key.flg1 = 1
                     key.flg2 = 0
                     key.koff1 = op.operand[1].val2 & 0xFFFF
                     key.ID = op.ID
-                    key.idx = cmd.unk3
+                    key.idx = cmd.index
                     key.oprID = (op.operand[0].ID & 0xF0) | (op.operand[1].ID & 0xF)
-                    key.koff2 = cmd.unk2 & 0x7FFFFFFF
-                cmd.unk2 = 0
+                    key.koff2 = cmd.keyData & 0x7FFFFFFF
+                cmd.keyData = 0
             else:
                 if op.operand[0].TID() == TID_MEM:
                     key.flg1 = 0
                     key.flg2 = 0
                     key.koff1 = op.operand[0].val2 & 0xFFFF
                     key.ID = op.ID
-                    key.idx = cmd.unk3
+                    key.idx = cmd.index
                     key.oprID = (op.operand[1].ID & 0xF0) | (op.operand[0].ID & 0xF)
                     key.koff2 = op.operand[1].value
                 else:
@@ -1196,7 +1196,7 @@ class FISH(VM):
                     key.flg2 = 0
                     key.koff1 = op.operand[1].val2 & 0xFFFF
                     key.ID = op.ID
-                    key.idx = cmd.unk3
+                    key.idx = cmd.index
                     key.oprID = (op.operand[0].ID & 0xF0) | (op.operand[1].ID & 0xF)
                     key.koff2 = op.operand[0].value
 
@@ -1685,6 +1685,8 @@ class FISH(VM):
         if h.tp == -1:
             print("Error while recover handler type")
             return False
+        else:
+            print("Handler {:x}".format(h.tp))
 
         return True
 
@@ -1695,7 +1697,7 @@ class FISH(VM):
 
     def EnumOps(self):
         for i in range(CMDSimpler.count):
-            CMDSimpler.heap[i].unk3 = i
+            CMDSimpler.heap[i].index = i
 
 
     def DeofusVM(self):

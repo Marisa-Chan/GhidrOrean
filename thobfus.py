@@ -8,22 +8,22 @@ class CmdEntry:
 	instr = rkInstruction()
 	addr = 0
 	unk1 = 0
-	unk2 = 0
-	unk3 = 0
+	keyData = 0
+	index = 0
 	
-	def __init__(self, ins = rkInstruction() , ad = 0, un1 = 0, un2 = 0, un3 = 0):
+	def __init__(self, ins = rkInstruction() , ad = 0, un1 = 0, kd = 0, idx = 0):
 		self.instr = ins
 		self.addr = ad
 		self.unk1 = un1
-		self.unk2 = un2
-		self.unk3 = un3
+		self.keyData = kd
+		self.index = idx
 
 	def Copy(self):
 		t = CmdEntry()
 		t.addr = self.addr
 		t.unk1 = self.unk1
-		t.unk2 = self.unk2
-		t.unk3 = self.unk3
+		t.keyData = self.keyData
+		t.index = self.index
 		t.instr = self.instr.Copy()
 		return t
 
@@ -40,6 +40,8 @@ def FUN_10065850(op1, op2):
 	return False
 
 def IsOpClass(opid, mv, idnn, asx):
+	if isinstance(opid, rkInstruction):
+		opid = opid.ID
 	if mv and opid == OP_MOV:
 		return True
 	elif idnn and opid in (OP_INC, OP_DEC, OP_NEG, OP_NOT):
@@ -67,11 +69,11 @@ def ComputeVal(op, sz, val1, val2):
 		v1 = UINT(val1)
 		v2 = UINT(val2)
 	else:
-		print("FUN_10070640 incorrect size {:d}".format(sz))
+		print("ComputeVal incorrect size {:d}".format(sz))
 		return False, val1
 
 	if ComputeValDbg:
-		print("op {:x}   {:x} {:x}".format(op, v1, v2))
+		print("op {}   {:x} {:x}".format(OpTxt(op), v1, v2))
 		
 	if op == OP_ADD:
 		v1 = v1 + v2
@@ -118,6 +120,29 @@ class Defus:
 	def __init__(self):
 		self.log = list()
 		self.heap = list()
+
+	def Clone(self):
+		c = Defus()
+		c.maxlen = self.count + 64
+		c.heap = [None] * c.maxlen
+		c.count = self.count
+		for i in range(self.count, c.maxlen):
+			c.heap[i] = CmdEntry()
+
+		for i in range(self.count):
+			c.heap[i] = self.heap[i].Copy()
+
+		c.unk = self.unk
+		return c
+
+	def Last(self):
+		return self.heap[ self.count - 1 ]
+
+	def FindIndexByIndex(self, idx):
+		for i in range(self.count):
+			if self.heap[i].index == idx:
+				return i
+		return -1
 	
 	def GetOP(self, a):
 		for i in range(self.count):
@@ -791,6 +816,7 @@ class Defus:
 				op0.operand[1].val2 = op1.operand[1].val2
 				op1.ID = 0
 				op2.ID = 0
+				self.DebugErrModify(i, 3, 0)
 				self.Cleaner(i, 10)
 			elif op0.operand[1].ID == op1.operand[0].ID and\
 			   op0.operand[1].value == op1.operand[0].value and\
@@ -1849,7 +1875,7 @@ class Defus:
 		elif mode == 'C':
 			self.SimpleC(a, vm, dbg)
 
-	def GetListing(self, adr, jmp):
+	def GetListing(self, adr, jmp, idx = False, skip = False):
 		outlst = list()
 
 		for i in range(self.count):
@@ -1859,6 +1885,8 @@ class Defus:
 				_, rk = XrkDecode(bts)
 
 				txt = ""
+				if idx:
+					txt += "{:d} \t".format(i)
 				if adr:
 					txt += "{:08X} \t".format(cmd.addr)
 
@@ -1879,7 +1907,7 @@ class Defus:
 							txt += "({:08X})".format(UINT(rk.operand[0].value + 6 + cmd.addr))
 
 				outlst.append(txt)
-			else:
+			elif not skip:
 				print("GetListing ERROR {:x} at {:x}".format(cmd.instr.ID, cmd.addr))
 				print("\t ID {:x}   op0 {:x} : {:x} ({:x})   op1 {:x} : {:x} ({:x}) ".format(cmd.instr.ID, cmd.instr.operand[0].ID, cmd.instr.operand[0].value, cmd.instr.operand[0].val2,
 																							 cmd.instr.operand[1].ID, cmd.instr.operand[1].value, cmd.instr.operand[1].val2))
@@ -1887,6 +1915,9 @@ class Defus:
 				_ = XrkAsm.AsmRk(cmd.instr)
 				XrkAsm.dbg = False
 				break
+			else:
+				outlst.append("ID {:x}   op0 {:x} : {:x} ({:x})   op1 {:x} : {:x} ({:x}) ".format(cmd.instr.ID, cmd.instr.operand[0].ID, cmd.instr.operand[0].value, cmd.instr.operand[0].val2,
+																							 cmd.instr.operand[1].ID, cmd.instr.operand[1].value, cmd.instr.operand[1].val2))
 
 		return outlst
 
@@ -1895,7 +1926,7 @@ class Defus:
 			rk = self.heap[i].instr
 			rk.opInfo = XrkAsm.FindInfo(rk)
 
-	def FUN_1005d720(self):
+	def FindConditionStart(self):
 		opz = self.heap[self.count - 1].instr
 
 		i = self.count - 1
@@ -1942,7 +1973,7 @@ class Defus:
 				return self.heap[i]
 		return None
 
-	def FUN_1005da10(self, vm, opid, inz, mode):
+	def EvaluateBranch(self, vm, opid, inz, mode):
 		self.unk = 1
 		opz = self.heap[self.count - 1].instr
 		uvr4 = 0
@@ -1956,10 +1987,10 @@ class Defus:
 				opz.operand[0].GetB(0) == opz.operand[1].GetB(0):
 			return (1, inz)
 		else:
-			(a, b, val) = self.FUN_1005d720()
+			(a, b, val) = self.FindConditionStart()
 			if a == 0:
 				self.Simple(vm, 0xfffe, mode)
-				(a, b, val) = self.FUN_1005d720()
+				(a, b, val) = self.FindConditionStart()
 				if a == 0:
 					return (0, inz)
 			l = b
@@ -1973,37 +2004,43 @@ class Defus:
 					CalcEFlags(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value, FLG)
 					_, val = ComputeVal(op.ID, op.operand[0].ID & 0xF, val, op.operand[1].value)
 
-				inz = FUN_1005ddf0(opid, FLG)
+				inz = EvaluateJcc(opid, FLG)
 				l += 1
 		self.unk = 0
 		return (1, inz)
 
 	def NextOp0Reg(self, i, reg):
-		t = i
 		while i < self.count:
 			cmd = self.heap[i]
 			if cmd.instr.operand[0].ID == ID_REG and cmd.instr.operand[0].GetB(0) == reg:
 				return (i, cmd)
 			i += 1
-		return (t, None)
+		return (-1, None)
 
 	def NextOp1MemReg(self, i, reg):
-		t = i
 		while i < self.count:
 			cmd = self.heap[i]
 			if cmd.instr.operand[1].TID() == TID_MEM and cmd.instr.operand[1].GetB(1) == reg:
 				return (i, cmd)
 			i += 1
-		return (t, None)
+		return (-1, None)
 
 	def NextOp0MemReg(self, i, reg):
-		t = i
 		while i < self.count:
 			cmd = self.heap[i]
 			if cmd.instr.operand[0].TID() == TID_MEM and cmd.instr.operand[0].GetB(1) == reg:
 				return (i, cmd)
 			i += 1
-		return (t, None)
+		return (-1, None)
+
+	def Bounds(self, offset, ln = 0):
+		if offset >= 0 and ln >= 0:
+			return offset + ln < self.count
+		return False
+
+	def SortByAddr(self):
+		self.heap[:self.count] = sorted(self.heap[:self.count], key = lambda x : x.addr)
+
 
 CMDSimpler = Defus()
 	

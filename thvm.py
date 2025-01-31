@@ -37,9 +37,11 @@ class CLABEL:
 class CLABELS:
     arr = None
     sz = 0
+    proceed = None
 
     def Init(self):
         self.arr = [None] * 0x1000
+        self.proceed = dict()
         for i in range(len(self.arr)):
             self.arr[i] = CLABEL()
 
@@ -94,6 +96,24 @@ class CLABELS:
         return None
 
 LABELS = CLABELS()
+
+
+class READER:
+    mpoint = None
+    addr = 0
+
+    def __init__(self, VM,  adr):
+        self.addr = adr
+        self.mpoint = VM.GetMM(adr)
+
+    def Read1(self, of):
+        return UB(self.mpoint[of])
+
+    def Read2(self, of):
+        return GetWORD(self.mpoint[of:of + 2])
+
+    def Read4(self, of):
+        return GetDWORD(self.mpoint[of:of + 4])
 
 
 def vid_22_d7(vid):
