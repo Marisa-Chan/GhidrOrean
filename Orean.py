@@ -31,7 +31,7 @@ def GetVMSig(addr):
 	
 	#PUSH PUSH JMP
 	if UB(bts[0]) == 0x68 and UB(bts[5]) == 0x68 and UB(bts[10]) == 0xe9:
-		print("Wild machine found...")
+		xlog("Wild machine found...")
 		VMTYPE = 5
 		return 5
 	elif UB(bts[0]) == 0x68 and UB(bts[5]) == 0xe9:
@@ -43,19 +43,19 @@ def GetVMSig(addr):
 			i += ln
 			
 			if rki.ID == OP_NOP:
-				print("Risc machine found (Generic), searching type...")
+				xlog("Risc machine found (Generic), searching type...")
 				VMTYPE = 3
 			if rki.ID == OP_CALL:
 				if (rki.operand[0].ID >> 4) == 3:
-					print("Risc machine found (Version 1)...")
+					xlog("Risc machine found (Version 1)...")
 					VMTYPE = 3
 					return 3
 				if (rki.operand[0].ID >> 4) == 1:
-					print("Risc machine found (Version 2)...")
+					xlog("Risc machine found (Version 2)...")
 					VMTYPE = 4
 					return 4
 			if rki.ID == OP_RETN:
-				print("Cisc machine found...")
+				xlog("Cisc machine found...")
 				VMTYPE = 1
 				return 1
 		
@@ -67,18 +67,20 @@ def GetVMSig(addr):
 	
 
 def main(addr):
+	xlogOpen(WRKDIR + "/TXT/console.log")
+
 	bts = GetBytes(addr, 5)
 	if UB(bts[0]) not in (0xe8, 0xe9):
-		print("Instruction at {:08X} isn\'t JMP or CALL".format(addr))
+		xlog("Instruction at {:08X} isn\'t JMP or CALL".format(addr))
 		return
 	if DEBUG >= 2:
-		print("Get instruction byte {:02X}".format( UB(bts[0]) ))
+		xlog("Get instruction byte {:02X}".format( UB(bts[0]) ))
 	
 	begaddr = UINT(addr + GetSInt(bts[1:]) + 5)
 	
 	vmSig = GetVMSig(begaddr)
 	
-	print("Machine type {:d}".format(vmSig))
+	xlog("Machine type {:d}".format(vmSig))
 	
 	if vmSig in (3, 4):
 		vm = thrisc.RISC()
@@ -96,14 +98,14 @@ def main(addr):
 
 			#if not vm.Step2(addr):
 
-			#print("step2")
+			#xlog("step2")
 			vm.Analyze()
 
 		vm.MakeSpecialHandlers()
 
 		if vm.IatAddr:
 
-			print("ok {:08x}".format(vm.pushValue))
+			xlog("ok {:08x}".format(vm.pushValue))
 			vm.DeVirt(0x10000)
 	elif vmSig == 5:
 		vm = thtiger.TIGER(WRKDIR)
@@ -112,24 +114,24 @@ def main(addr):
 			return
 
 		if not vm.Step1(vm.VMAddr):
-			print("[Wild] Failed to load zero data")
+			xlog("[Wild] Failed to load zero data")
 			return
 
 		if not vm.Step2():
-			print("[Wild] Failed to process zero data")
+			xlog("[Wild] Failed to process zero data")
 			return
 
 
 		if not vm.KeyWalk():
-			print("[Wild] Failed keywalk searching")
+			xlog("[Wild] Failed keywalk searching")
 			return
 
 		if not vm.DeofusVM():
-			print("[Wild] Can\'t deofuscate virtual machine")
+			xlog("[Wild] Can\'t deofuscate virtual machine")
 			return
 
 		if not vm.Trace():
-			print("[Wild] Can\'t trace")
+			xlog("[Wild] Can\'t trace")
 			return
 	elif vmSig == 0:
 		vm = thtiger.TIGER(WRKDIR)
@@ -137,10 +139,10 @@ def main(addr):
 
 		mblock = GetMemBlockInfo(begaddr)
 		if not mblock:
-			print("Can't get mem block at {:08X}".format(begaddr))
+			xlog("Can't get mem block at {:08X}".format(begaddr))
 			return False
 
-		print("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
+		xlog("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
 
 		vm.mblk.data = GetBytes(mblock.addr, mblock.size)
 		vm.mblk.addr = mblock.addr
@@ -149,7 +151,7 @@ def main(addr):
 		vm.DumpHandler(begaddr, 1)
 
 		for l in CMDSimpler.GetListing(True, False):
-			print("{}".format(l))
+			xlog("{}".format(l))
 
 
 

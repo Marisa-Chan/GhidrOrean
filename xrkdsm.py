@@ -486,7 +486,7 @@ def XrkTextOp(rk, i = 0):
 		o = ","
 	op = rk.operand[i]
 	tid = op.TID()
-	if tid == 1:
+	if tid == TID_REG:
 		sz = op.GetB(0) & 0xf
 		regid = op.GetB(0) >> 4
 		if sz == 1:
@@ -497,7 +497,7 @@ def XrkTextOp(rk, i = 0):
 			o += REG32NAME[regid]
 		else:
 			o += "REG UNK"
-	elif tid == 2:
+	elif tid == TID_VAL:
 		sz = op.ID & 0xF
 		if sz == 1:
 			o += "0x{:x}".format(UB(op.value))
@@ -507,7 +507,7 @@ def XrkTextOp(rk, i = 0):
 			o += "0x{:x}".format(UINT(op.value))
 		else:
 			o += "IMMC UNK"
-	elif tid == 3:
+	elif tid == TID_MEM:
 		sz = op.ID & 0xF
 		o += PTRNAME[sz]
 		if rk.op2x3x6x == 0x2e:
@@ -912,10 +912,12 @@ def OpTxt(op):
 	return "{:x}".format(id)
 
 def RegName(fam, sz):
+	if fam not in range(0, 8):
+		return "R_{:x}{:x}".format(fam, sz)
 	if sz == 1:
 		return REG8_NAMES[fam]
 	elif sz == 2:
 		return REG16_NAMES[fam]
 	elif sz == 3:
 		return REG32_NAMES[fam]
-	return "R_{:x}{:x}".format(fame, sz)
+	return "R_{:x}{:x}".format(fam, sz)

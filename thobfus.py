@@ -58,7 +58,7 @@ def FUN_10060650(rk):
 
 ComputeValDbg = False
 
-def ComputeVal(op, sz, val1, val2):
+def ComputeVal(op, sz, val1, val2, dbg=False):
 	if sz == 1:
 		v1 = UB(val1)
 		v2 = UB(val2)
@@ -69,11 +69,11 @@ def ComputeVal(op, sz, val1, val2):
 		v1 = UINT(val1)
 		v2 = UINT(val2)
 	else:
-		print("ComputeVal incorrect size {:d}".format(sz))
+		xlog("ComputeVal incorrect size {:d}".format(sz))
 		return False, val1
 
-	if ComputeValDbg:
-		print("op {}   {:x} {:x}".format(OpTxt(op), v1, v2))
+	if ComputeValDbg or dbg:
+		xlog("op {}   {:x} {:x}".format(OpTxt(op), v1, v2))
 		
 	if op == OP_ADD:
 		v1 = v1 + v2
@@ -285,14 +285,14 @@ class Defus:
 		while j < num:
 			cmd = self.heap[i + j]
 			if cmd.addr >= adr1 and cmd.addr < adr2:
-				print("Modify of 0x{:X} by {}  {:d}".format(self.errAddr, fun, part))
+				xlog("Modify of 0x{:X} by {}  {:d}".format(self.errAddr, fun, part))
 				j = 0
 
 				while j < num:
 					rk = self.heap[i+j].instr
-					print("\t addr {:x}    {}         {:x}:{:x} {:x}:{:x}".format(self.heap[i + j].addr, RecomputeRk(rk), rk.operand[0].ID, rk.operand[0].value, rk.operand[1].ID, rk.operand[1].value))
+					xlog("\t addr {:x}    {}         {:x}:{:x} {:x}:{:x}".format(self.heap[i + j].addr, RecomputeRk(rk), rk.operand[0].ID, rk.operand[0].value, rk.operand[1].ID, rk.operand[1].value))
 
-					#print(' '.join('{:02x}'.format(x) for x in self.heap[i + j].instr.bts))
+					#xlog(' '.join('{:02x}'.format(x) for x in self.heap[i + j].instr.bts))
 
 					j += 1
 
@@ -311,7 +311,7 @@ class Defus:
 		   op0.operand[1].value in (2, 4) and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
-			#print("CheckRound1_1")
+			#xlog("CheckRound1_1")
 		   
 			if op1.operand[1].GetB(0) in (0x42, 0x43):
 				if op2.ID == OP_ADD and\
@@ -348,7 +348,7 @@ class Defus:
 		   op1.operand[1].ID == 0x10 and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
-			#print("CheckRound1_2")
+			#xlog("CheckRound1_2")
 		   
 			if UB(op1.operand[1].value) in (0x42, 0x43):
 				if op2.ID == OP_ADD and\
@@ -381,7 +381,7 @@ class Defus:
 		   op1.operand[1].ID == 0x10 and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
-			#print("CheckRound1_3")
+			#xlog("CheckRound1_3")
 		   
 			if op1.operand[1].GetB(0) in (0x42, 0x43):
 				if op2.ID == OP_ADD and\
@@ -419,7 +419,7 @@ class Defus:
 		   (op0.operand[0].GetB(0) >> 4) != 4 and\
 		   (op0.operand[1].value & 0xFFFFFF00) == 0x00004300 and op0.operand[1].val2 == 0 and\
 		   op1.operand[0].GetB(0) == 0x43 and (op1.operand[1].value in (2, 4)):
-			#print("CheckRound2_1 1")
+			#xlog("CheckRound2_1 1")
 			op0.ID = OP_POP
 			op0.operand[1].ID = 0
 			op0.operand[1].value = 0
@@ -433,7 +433,7 @@ class Defus:
 		   op0.operand[1].ID in (0x32,0x33) and\
 		   (UB(op0.operand[0].value) >> 4) == 4 and\
 		   (op0.operand[1].value & 0xFFFFFF00) == 0x00004300 and op0.operand[1].val2 == 0:
-			#print("CheckRound2_1 2")
+			#xlog("CheckRound2_1 2")
 			op0.ID = OP_POP
 			op0.operand[1].ID = 0
 			op0.operand[1].value = 0
@@ -473,7 +473,7 @@ class Defus:
 		   op4.operand[0].GetB(0) == op0.operand[0].GetB(0))) and\
 		   op5.operand[0].GetB(0) == 0x43:
 		   
-			#print("CheckRound3_1")
+			#xlog("CheckRound3_1")
 			op0.ID = op3.ID
 			op0.operand[0].ID = 0x10
 			op0.operand[0].SetB(0, 0x43)
@@ -505,7 +505,7 @@ class Defus:
 		   op0.operand[1].val2 == op1.operand[0].val2 and\
 		   op1.operand[0].value == op2.operand[1].value and\
 		   op1.operand[0].val2 == op2.operand[1].val2:		   
-			#print("CheckXorXorXor1")
+			#xlog("CheckXorXorXor1")
 			op0.ID = OP_XCHG
 			op0.operand[0].ID = op1.operand[0].ID
 			op0.operand[0].value = op1.operand[0].value
@@ -535,7 +535,7 @@ class Defus:
 		   (op2.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 		   op2.operand[0].val2 == 0:
 		   
-			#print("CheckPushMovPop1")
+			#xlog("CheckPushMovPop1")
 			op0.ID = OP_XCHG
 			op0.operand[1].ID = op2.operand[0].ID
 			op0.operand[1].value = op2.operand[0].value
@@ -567,7 +567,7 @@ class Defus:
 				op2.operand[1].val2 == op3.operand[0].val2 and\
 				op4.operand[0].GetB(0) == op0.operand[0].GetB(0):
 			
-				#print("CheckPushMovMovMovPop1")
+				#xlog("CheckPushMovMovMovPop1")
 				op0.ID = OP_XCHG
 				op0.CopyOpFields( op3 )
 				op0.operand[0].ID = op3.operand[0].ID
@@ -628,7 +628,7 @@ class Defus:
 						op3.operand[0].val2 = op3.operand[0].val2 - 4
 				s,newval = ComputeVal(op3.ID, op3.operand[0].ID & 0xf, op2.operand[1].value, op1.operand[1].value)
 			
-			#print("CheckPushMovMovXX1")
+			#xlog("CheckPushMovMovXX1")
 			
 			op0.ID = OP_MOV
 			op0.CopyOpFields(op3)
@@ -670,7 +670,7 @@ class Defus:
 		  op3.operand[1].GetB(0) == op1.operand[0].GetB(0) and\
 		  op5.operand[0].GetB(0) == op0.operand[0].GetB(0):
 			
-			#print("CheckPushMovMovXXPop1")
+			#xlog("CheckPushMovMovXXPop1")
 					  
 			local_14 = op2.operand[1].value
 			_,local_14 = ComputeVal(op3.ID, op3.operand[0].value & 0xf, local_14, op1.operand[1].value)
@@ -706,7 +706,7 @@ class Defus:
 		  (op0.operand[0].ID == 0x23 and op1.operand[0].ID == 0x10) or\
 		  (op0.operand[0].ID == 0x22 and op1.operand[0].ID == 0x10) ):
 		  
-			#print("CheckPushPop1")
+			#xlog("CheckPushPop1")
 			op0.ID = OP_MOV
 			op0.operand[1].ID = op0.operand[0].ID
 			op0.operand[1].value = op0.operand[0].value
@@ -741,7 +741,7 @@ class Defus:
 		   op3.operand[0].value == op2.operand[0].value and\
 		   op3.operand[0].val2 == op2.operand[0].val2:
 		   
-			#print("CheckPushXPopX1")
+			#xlog("CheckPushXPopX1")
 			op0.ID = OP_MOV
 			op0.operand[1].ID = op0.operand[0].ID
 			op0.operand[1].value = op0.operand[0].value
@@ -773,7 +773,7 @@ class Defus:
 		   op1.operand[0].val2 == op2.operand[0].val2 and\
 		   op0.operand[1].value == op2.operand[1].value:
 			
-			#print("CheckAddSubSub1")
+			#xlog("CheckAddSubSub1")
 			op0.ID = op1.ID
 			op0.operand[1].ID = op1.operand[1].ID
 			op0.operand[1].value = op1.operand[1].value
@@ -1778,9 +1778,9 @@ class Defus:
 	def SimpleA(self, a, vm, dbg = False):
 		if dbg:
 			self.RebuildInfo()
-			print("")
+			xlog("")
 			for l in self.GetListing(True, False):
-				print(l)
+				xlog(l)
 		while True:
 			cnt = self.count
 			
@@ -1805,13 +1805,13 @@ class Defus:
 			#if ipos >= 0:
 			#	Recompute( self.heap[ipos:ipos + 20] )
 			
-			#print("cnt {} {}".format(cnt, self.count))
+			#xlog("cnt {} {}".format(cnt, self.count))
 
 			if dbg:
-				print("cnt {} {}".format(cnt, self.count))
+				xlog("cnt {} {}".format(cnt, self.count))
 				self.RebuildInfo()
 				for l in self.GetListing(True, False):
-					print(l)
+					xlog(l)
 
 			if cnt == self.count:
 				self.CollapseArithmetic(vm.tp)
@@ -1825,9 +1825,9 @@ class Defus:
 	def SimpleC(self, a, vm, dbg = False):
 		if dbg:
 			self.RebuildInfo()
-			print("")
+			xlog("")
 			for l in self.GetListing(True, False):
-				print(l)
+				xlog(l)
 		while True:
 			cnt = self.count
 
@@ -1850,13 +1850,13 @@ class Defus:
 			# if ipos >= 0:
 			#	Recompute( self.heap[ipos:ipos + 20] )
 
-			# print("cnt {} {}".format(cnt, self.count))
+			# xlog("cnt {} {}".format(cnt, self.count))
 
 			if dbg:
-				print("cnt {} {}".format(cnt, self.count))
+				xlog("cnt {} {}".format(cnt, self.count))
 				self.RebuildInfo()
 				for l in self.GetListing(True, False):
-					print(l)
+					xlog(l)
 
 			if cnt == self.count:
 				self.CollapseArithmetic(vm.tp)
@@ -1908,8 +1908,8 @@ class Defus:
 
 				outlst.append(txt)
 			elif not skip:
-				print("GetListing ERROR {:x} at {:x}".format(cmd.instr.ID, cmd.addr))
-				print("\t ID {:x}   op0 {:x} : {:x} ({:x})   op1 {:x} : {:x} ({:x}) ".format(cmd.instr.ID, cmd.instr.operand[0].ID, cmd.instr.operand[0].value, cmd.instr.operand[0].val2,
+				xlog("GetListing ERROR {:x} at {:x}".format(cmd.instr.ID, cmd.addr))
+				xlog("\t ID {:x}   op0 {:x} : {:x} ({:x})   op1 {:x} : {:x} ({:x}) ".format(cmd.instr.ID, cmd.instr.operand[0].ID, cmd.instr.operand[0].value, cmd.instr.operand[0].val2,
 																							 cmd.instr.operand[1].ID, cmd.instr.operand[1].value, cmd.instr.operand[1].val2))
 				XrkAsm.dbg = True
 				_ = XrkAsm.AsmRk(cmd.instr)

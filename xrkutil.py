@@ -143,3 +143,15 @@ def GetMemBlockInfo(addr):
 
 def SPLIT(s, d):
 	return filter(None, re.split("|".join(d), s) )
+
+XLOG = None
+def xlogOpen(fname):
+	global XLOG
+	XLOG = open(fname, "w")
+
+def xlog(*args):
+	ln = ','.join(map(str,args))
+	if XLOG != None:
+		XLOG.write(ln + "\n")
+	print(ln)
+

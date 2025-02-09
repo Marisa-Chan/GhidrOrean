@@ -33,6 +33,7 @@ class CLABEL:
     proceed = 0
     printed = 0
     idx = 0
+    specialData = None
 
 class CLABELS:
     arr = None

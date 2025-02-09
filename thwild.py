@@ -37,21 +37,21 @@ class FKEY:
 
 
 
-WH_JMP_INS = 1
+WH_JMP_INS = 1 #
 WH_JMP_OUT_REG = 2
 WH_JMP_OUT_MEM = 3
 WH_JMP_OUT_IMM = 4
-WH_JCC_INS = 5
-WH_JCC_OUT = 6
+WH_JCC_INS = 5 #
+WH_JCC_OUT = 6 #
 WH_RET = 7
 WH_CALL = 8
-WH_UNDEF = 9
+WH_UNDEF = 9 #
 WH_LODSB = 10
 WH_LODSW = 11
 WH_LODSD = 12
-WH_STOSB = 13
-WH_STOSW = 14
-WH_STOSD = 15
+WH_STOSB = 13 #?
+WH_STOSW = 14 #?
+WH_STOSD = 15 #?
 WH_SCASB = 16
 WH_SCASW = 17
 WH_SCASD = 18
@@ -61,15 +61,15 @@ WH_CMPSD = 21
 WH_MOVSB = 22
 WH_MOVSW = 23
 WH_MOVSD = 24
-WH_PUSHFD = 25
-WH_POPFD = 26
+WH_PUSHFD = 25 #
+WH_POPFD = 26 #
 WH_EFLAGS = 27
-WH_RESTORE_STK = 28
-WH_LOAD_STK = 29
-WH_STORE_STK = 30
+WH_RESTORE_STK = 28 #
+WH_LOAD_STK = 29 #
+WH_STORE_STK = 30 #
 WH_RESET_EFLAGS = 31
-WH_RESET = 32
-WH_CRYPT = 33
+WH_RESET = 32 #
+WH_CRYPT = 33 #
 WH_CNT = 34
 WH_INVALID = 0xFFFF
 
@@ -84,6 +84,21 @@ WOP_CRYPT = 0x1006
 OPSZ_SUB = 0x4000
 OPSZ_RETN = 0x8000
 OPSZ_INVALID = 0xFFFF
+
+TH_OPR_UNK = 0
+TH_OPR_REG = 1
+TH_OPR_IMM = 2
+TH_OPR_MEM_IMM = 3
+TH_OPR_MEM_REG = 4
+
+WILD_OPTXT = {WOP_UNDEF: "UNDEF",
+              WOP_RSTACK: "RESTORE STACK",
+              WOP_LSTACK: "LOAD STACK",
+              WOP_SSTACK: "STORE STACK",
+              WOP_REFLAGS: "RESET EFLAGS",
+              WOP_RESET: "RESET",
+              WOP_CRYPT: "CRYPT"}
+
 
 class OPREGION:
     tp = 0
@@ -136,7 +151,7 @@ def KeyProtTempl(vm, key):
     keyData = vm.GetKey(key.keyId)
     if keyData == None:
         return False
-    #print("----------------- KEYDATA {:x}".format(keyData))
+    #xlog("----------------- KEYDATA {:x}".format(keyData))
     return (keyData & 1) != 0
 
 class WILD(VM):
@@ -203,6 +218,10 @@ class WILD(VM):
 
     JccBranches = None
 
+    realRegs = None
+    vmEspReg = -1
+
+    traceLog = True
 
 
 
@@ -219,6 +238,8 @@ class WILD(VM):
         self.vmReg = dict()
         self.JmpLabel = dict()
         self.JccBranches = list()
+        self.realRegs = set()
+        self.vmEspReg = -1
 
     def GetMnemonic(self, k):
         if k in self.mnemonicTypes:
@@ -248,7 +269,7 @@ class WILD(VM):
             if k.Offset == offset:
                 k.Data = data
                 return True
-        #print("Can't set key {:x} {:x}".format(offset, data))
+        #xlog("Can't set key {:x} {:x}".format(offset, data))
         return False
 
     def IsHasKey(self, offset):
@@ -261,7 +282,7 @@ class WILD(VM):
         for k in self.Keys:
             if k.Offset == offset:
                 return k.Data
-        print("NONE")
+        xlog("NONE")
         return none
 
     def GetKeyOffset(self, idx):
@@ -278,7 +299,7 @@ class WILD(VM):
 
         bs = GetBytes(addr, 5)
         if UB(bs[0]) not in (0xe8, 0xe9):
-            print("Not JMP or CALL at: {:08x}".format(addr))
+            xlog("Not JMP or CALL at: {:08x}".format(addr))
             return False
 
         self.jmpaddr = addr
@@ -288,10 +309,10 @@ class WILD(VM):
 
         mblock = GetMemBlockInfo(vma)
         if not mblock:
-            print("Can't get mem block at {:08X}".format(vma))
+            xlog("Can't get mem block at {:08X}".format(vma))
             return False
 
-        print("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
+        xlog("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
 
         self.mblk.data = GetBytes(mblock.addr, mblock.size)
         self.mblk.addr = mblock.addr
@@ -303,7 +324,7 @@ class WILD(VM):
             sz, rk = XrkDecode(m)
 
             if rk.ID != OP_PUSH:
-                print("Instruction at {:08X} not a PUSH".format(pushA))
+                xlog("Instruction at {:08X} not a PUSH".format(pushA))
                 return False
 
             if i == 0:
@@ -319,17 +340,17 @@ class WILD(VM):
         sz, rk = XrkDecode(m)
 
         if rk.ID != OP_JMP:
-            print("Instruction at {:08X} not a JMP".format(pushA))
+            xlog("Instruction at {:08X} not a JMP".format(pushA))
             return False
 
         maddr = UINT(pushA + sz + rk.operand[0].value)
 
         mblock = GetMemBlockInfo(maddr)
         if not mblock:
-            print("Can't get mem block at {:08X}".format(maddr))
+            xlog("Can't get mem block at {:08X}".format(maddr))
             return False
 
-        print("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
+        xlog("Getting section {:08X} - {:08X}".format(mblock.addr, mblock.addr + mblock.size))
         self.mblk.data = GetBytes(mblock.addr, mblock.size)
         self.mblk.addr = mblock.addr
         self.mblk.size = mblock.size
@@ -375,7 +396,7 @@ class WILD(VM):
                 val = cmd.addr + 5
                 flg[0] = True
                 if dbg:
-                    print("FindImageBase OP_CALL {:08x}".format(val))
+                    xlog("FindImageBase OP_CALL {:08x}".format(val))
 
             elif flg[0] and IsOpClass(op.ID, 0, 0, 1) and \
                 op.operand[0].IsReg(R_ECX) and\
@@ -385,7 +406,7 @@ class WILD(VM):
                 flg[1] = True
 
                 if dbg:
-                    print("FindImageBase asx0 {:08x} = {:08x}".format(op.operand[1].value, val))
+                    xlog("FindImageBase asx0 {:08x} = {:08x}".format(op.operand[1].value, val))
 
             elif flg[1] and IsOpClass(op.ID, 0, 0, 1) and \
                  op.operand[0].IsReg(R_ECX) and \
@@ -395,18 +416,18 @@ class WILD(VM):
                 flg[1] = False
 
                 if dbg:
-                    print("FindImageBase asx1 {:08x} = {:08x}".format(op.operand[1].value, val))
+                    xlog("FindImageBase asx1 {:08x} = {:08x}".format(op.operand[1].value, val))
 
             elif flg[2] and op.ID == OP_MOV and \
                  op.operand[0].IsReg(R_EBP) and\
                  op.operand[1].ID == ID_VAL32:
                 if dbg:
-                    print("FindImageBase OP_MOV {:d} {:08x}".format(i, val))
+                    xlog("FindImageBase OP_MOV {:d} {:08x}".format(i, val))
                 return (i, val)
 
             elif op.ID == OP_PUSH:
                 if dbg:
-                    print("FindImageBase OP_PUSH")
+                    xlog("FindImageBase OP_PUSH")
                 break
 
             i += 1
@@ -426,20 +447,20 @@ class WILD(VM):
                 reg = op.operand[0].Base()
                 flg = True
                 if dbg:
-                    print("FindImageBase OP_MOV ")
+                    xlog("FindImageBase OP_MOV ")
 
             elif flg and IsOpClass(op.ID, 0, 0, 1) and \
                  op.operand[0].IsReg(reg) and \
                  op.operand[1].IsReg(R_ECX):
 
                 if dbg:
-                    print("FindImageBase asx001 {:08x} = ".format(op.operand[1].value))
+                    xlog("FindImageBase asx001 {:08x} = ".format(op.operand[1].value))
 
                 return (i + 1, UINT(self.imageBase + addr))
 
             elif op.ID == OP_PUSH:
                 if dbg:
-                    print("FindImageBase OP_PUSH")
+                    xlog("FindImageBase OP_PUSH")
                 break
             i += 1
         return (0, 0)
@@ -615,7 +636,7 @@ class WILD(VM):
         self.push1_2 = UINT(self.push1_2 + self.imageBase)
         self.push1 = UINT(self.push1 + self.imageBase)
 
-        print("v1 {:08x} pop {:d} vmImgBaseOffset {:08x} v3 {:08x} v4 {:08x} vmEIP {:08x} iatAddr {:08x} v7 {:08x} iatCount {:08x}".format(self.VmContext, popPos, self.vmImgBaseOffset, self.vmOldBase, self.val4, self.vmEIP, self.iatAddr, self.HTableOff, self.iatCount))
+        xlog("v1 {:08x} pop {:d} vmImgBaseOffset {:08x} v3 {:08x} v4 {:08x} vmEIP {:08x} iatAddr {:08x} v7 {:08x} iatCount {:08x}".format(self.VmContext, popPos, self.vmImgBaseOffset, self.vmOldBase, self.val4, self.vmEIP, self.iatAddr, self.HTableOff, self.iatCount))
         return True
 
     def EvalSimpleBranch(self):
@@ -730,7 +751,7 @@ class WILD(VM):
             if J == 1:
                 a, b = CMDSimpler.EvaluateBranch(self, self.dmRk.ID, False, 'C')
                 if (a & 0xFF) == 0:
-                    print("Follow Jump?")
+                    xlog("Follow Jump?")
                     b = 0
             else:
                 b = 1
@@ -1083,13 +1104,13 @@ class WILD(VM):
                        opj1.operand[0].GetB(0) == opj.operand[0].GetB(0) and\
                        opj1.operand[1].TID() == TID_VAL and N < 0x32:
                         m = self.GetMM( UINT(self.push1 + opj1.operand[1].value) )
-                        #print("{:08x} ".format(UINT(self.push1 + opj1.operand[1].value)))
+                        #xlog("{:08x} ".format(UINT(self.push1 + opj1.operand[1].value)))
                         self.push2_2 = GetWORD(m)
                         self.push1 = UINT(self.push1 + N)
                         return True
                 j -= 1
 
-            print(j)
+            xlog(j)
         return False
 
     def KeyWalk(self):
@@ -1103,7 +1124,7 @@ class WILD(VM):
         else:
             ibase = self.imageBase
 
-        print("[AntiFISH] Searching for keys...")
+        xlog("[AntiFISH] Searching for keys...")
 
         self.ResetKeys()
 
@@ -1115,7 +1136,7 @@ class WILD(VM):
 
             self.DumpHandler(UINT(ibase + haddr), 1)
 
-            print("Process handle at {:08x}".format( UINT(ibase + haddr) ))
+            xlog("Process handle at {:08x}".format( UINT(ibase + haddr) ))
 
             f.write("//////////////////////////////////////////////\r\n// FISH Virtual Handler {:04x} {:08X}\r\n".format(i, UINT(ibase + haddr) ))
             for l in CMDSimpler.GetListing(True, False):
@@ -1123,7 +1144,7 @@ class WILD(VM):
 
             if self.CheckForKeysHandle():
                 f.close()
-                print("Key found")
+                xlog("Key found")
                 return True
 
             if not self.ProcessToNextHndl():
@@ -1236,7 +1257,7 @@ class WILD(VM):
             return False
 
         h.flowReadIndex = CMDSimpler.heap[i].index
-        #print("flowReadIndex {:x}".format(CMDSimpler.heap[i].addr))
+        #xlog("flowReadIndex {:x}".format(CMDSimpler.heap[i].addr))
         reg = cmds[i].instr.operand[0].GetB(0)
 
         i = self.FindReadOffset(i + 1, reg)
@@ -1294,12 +1315,12 @@ class WILD(VM):
 
                         h.keys.append(key)
 
-                        #print(key.idx, hex(key.koff1), key.tid, key.sz, hex(key.mnemonic), hex(key.parameter))
-                        #print(XrkText(op))
-                        #print(XrkText(heap[binOff].instr))
-                        #print(XrkText(jop))
-                        #print(XrkText(jop1))
-                        #print(XrkText(jop2))
+                        #xlog(key.idx, hex(key.koff1), key.tid, key.sz, hex(key.mnemonic), hex(key.parameter))
+                        #xlog(XrkText(op))
+                        #xlog(XrkText(heap[binOff].instr))
+                        #xlog(XrkText(jop))
+                        #xlog(XrkText(jop1))
+                        #xlog(XrkText(jop2))
 
                         jop.iD = 0
                         jop1.ID = 0
@@ -1399,7 +1420,7 @@ class WILD(VM):
             heap[16].instr.ID == OP_JMP:
 
             h.tp = WH_JMP_INS
-            #print("JMPINS {:X} {:X}".format(heap[1].instr.operand[1].ID, heap[8].instr.operand[1].ID))
+            #xlog("JMPINS {:X} {:X}".format(heap[1].instr.operand[1].ID, heap[8].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[1].instr.operand[1].value
             h.opcodeOffsets[1] = heap[8].instr.operand[1].value
             return True
@@ -1418,7 +1439,7 @@ class WILD(VM):
             heap[9].instr.operand[1].Base() == heap[4].instr.operand[0].Base() and \
             heap[10].instr.ID == OP_MOV:
             h.tp = WH_JMP_OUT_REG
-            #print("JMP OUT REG {:X}".format(heap[1].instr.operand[1].ID))
+            #xlog("JMP OUT REG {:X}".format(heap[1].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[1].instr.operand[1].value # must be IMM
             return True
         elif CMDSimpler.Bounds(0, 11) and \
@@ -1437,7 +1458,7 @@ class WILD(VM):
             heap[10].instr.ID == OP_MOV and \
             heap[11].instr.ID == OP_MOV:
             h.tp = WH_JMP_OUT_MEM
-            #print("JMP OUT MEM {:X}".format(heap[1].instr.operand[1].ID))
+            #xlog("JMP OUT MEM {:X}".format(heap[1].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[1].instr.operand[1].value # must be IMM
             return True
         elif CMDSimpler.Bounds(0, 18) and \
@@ -1462,7 +1483,7 @@ class WILD(VM):
             heap[17].instr.ID in (OP_POP, OP_POPF) and \
             heap[18].instr.ID == OP_RETN:
             h.tp = WH_JMP_OUT_IMM
-            #print("JMP OUT IMM {:X}".format(heap[1].instr.operand[1].ID))
+            #xlog("JMP OUT IMM {:X}".format(heap[1].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[1].instr.operand[1].value # must be IMM
             return True
         return False
@@ -1534,7 +1555,7 @@ class WILD(VM):
                 h.tp = WH_JCC_OUT
             else:
                 h.tp = WH_JCC_INS
-            #print("JCC  {:X}".format(heap[7].instr.operand[1].ID))
+            #xlog("JCC  {:X}".format(heap[7].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[7].instr.operand[1].value
             return self.ParseJccParameters(h)
         return False
@@ -1564,7 +1585,7 @@ class WILD(VM):
             heap[10].instr.ID == OP_ADD:
             idx = CMDSimpler.count - 25
             h.tp = WH_UNDEF
-            # print("JCC  {:X}".format(heap[7].instr.operand[1].ID))
+            # xlog("JCC  {:X}".format(heap[7].instr.operand[1].ID))
             h.opcodeOffsets[0] = heap[1].instr.operand[1].value
             h.opcodeOffsets[1] = heap[8].instr.operand[1].value
             return True
@@ -1623,7 +1644,7 @@ class WILD(VM):
                     h.tp = WH_LODSD
                 else:
                     return False
-                #print("LODS ", t)
+                #xlog("LODS ", t)
                 return True
         return False
 
@@ -1680,7 +1701,7 @@ class WILD(VM):
                     h.tp = WH_STOSD
                 else:
                     return False
-                #print("STOS ", t)
+                #xlog("STOS ", t)
                 return True
         return False
 
@@ -1720,7 +1741,7 @@ class WILD(VM):
                 h.tp = WH_SCASD
             else:
                 return False
-            #print("SCAS ", t)
+            #xlog("SCAS ", t)
             return True
         return False
 
@@ -1761,7 +1782,7 @@ class WILD(VM):
                 h.tp = WH_CMPSD
             else:
                 return False
-            # print("SCAS ", t)
+            # xlog("SCAS ", t)
             return True
         return False
 
@@ -1806,7 +1827,7 @@ class WILD(VM):
                 h.tp = WH_MOVSD
             else:
                 return False
-            # print("MOVS ", t)
+            # xlog("MOVS ", t)
             return True
         return False
 
@@ -1832,7 +1853,7 @@ class WILD(VM):
                         break
 
             if self.GetMnemonic( op.operand[1].value ) != OP_NONE :
-                print("EFLAGS mnemonic table corrupt with {:08X}".format(self.GetMnemonic( op.operand[1].value )))
+                xlog("EFLAGS mnemonic table corrupt with {:08X}".format(self.GetMnemonic( op.operand[1].value )))
             else:
                 mnems = (OP_CLC, OP_CLD, OP_CLI, OP_CMC, OP_STC, OP_STD, OP_STI)
                 self.SetMnemonic( op.operand[1].value, mnems[i] )
@@ -2118,7 +2139,7 @@ class WILD(VM):
                         jop.operand[0].XBase() == op.operand[0].XBase():
                         break
 
-                #print(hex(offset))
+                #xlog(hex(offset))
                 if opOffset == -1 or tp == -1:
                     continue
 
@@ -2195,14 +2216,14 @@ class WILD(VM):
                                     x.off1 = opOffset
                                     if x.off2 != -1:
                                         h.regions.append(OPREGION(1, x.off1, 2, CMDSimpler.heap[j].index, x.off2))
-                                        #print("PushPop Added")
+                                        #xlog("PushPop Added")
                                 elif x.off2 == -1 and x.reg2 == reg:
                                     x.off2 = opOffset
                                     if x.off1 != -1:
                                         h.regions.append(OPREGION(1, x.off1, 2, CMDSimpler.heap[j].index, x.off2))
-                                        #print("PushPop Added")
+                                        #xlog("PushPop Added")
                                 else:
-                                    print("PushPop collision")
+                                    xlog("PushPop collision")
                         break
 
     def DecryptOpcodeSize(self, h):
@@ -2219,11 +2240,11 @@ class WILD(VM):
 
     def RecoverHandle(self, h, fdbg = None):
         if not self.RecoverJumpData(h):
-            print("Error while recover jump data")
+            xlog("Error while recover jump data")
             return False
 
         if not self.RecoverKeyData(h):
-            print("Error while recover key data")
+            xlog("Error while recover key data")
             return False
 
         if fdbg != None:
@@ -2242,10 +2263,10 @@ class WILD(VM):
         #self.RecoveryHandleType(h)
 
         #if h.tp == -1:
-        #    print("Error while recover handler type")
+        #    xlog("Error while recover handler type")
         #    return False
         #else:
-        #    print("Handler {:x}".format(h.tp))
+        #    xlog("Handler {:x}".format(h.tp))
 
         return True
 
@@ -2283,15 +2304,15 @@ class WILD(VM):
             pass
 
         if h.tp != -1:
-            print(
+            xlog(
                 "\t{:04x} Handler {:04x} {:08x} {:d}({:d}) {:d}".format(h.tp, i, hndlAddr, h.operands[0].tp,
                                                                         h.operands[0].sz, h.operands[1].tp))
             self.fdmach.write("Handler {:04x}\n".format(h.tp))
         else:
-            print("\t{:04x} Handler {:04x} {:08x} keys {:d} regions {:d} size {:d}".format(h.tp, i, hndlAddr,
+            xlog("\t{:04x} Handler {:04x} {:08x} keys {:d} regions {:d} size {:d}".format(h.tp, i, hndlAddr,
                                                                                            len(h.keys), len(h.regions),
                                                                                            h.opcodeSize))
-        # print(" " + hex(h.tp))
+        # xlog(" " + hex(h.tp))
 
         self.hndl[i] = h
         self.hndlCount += 1
@@ -2310,6 +2331,8 @@ class WILD(VM):
             self.ivmbase = self.imageBase
 
         self.f_6f038 = 0
+
+        xlog("Open out file ", "{}/TXT/Fish_Machine_{:08x}.txt".format(self.WrkDir, self.VMAddr),)
 
         self.fmach = open("{}/TXT/Fish_Machine_{:08x}.txt".format(self.WrkDir, self.VMAddr), "w")
         self.fdmach = open("{}/TXT/Fish_Machine_dbg_{:08x}.txt".format(self.WrkDir, self.VMAddr), "w")
@@ -2341,10 +2364,10 @@ class WILD(VM):
                 pass
 
             if h.tp != -1 :
-                print("\t{:04x} Handler {:04x} {:08x} {:d}({:d}) {:d}".format(h.tp, i, UINT(self.ivmbase + haddr), h.operands[0].tp, h.operands[0].sz, h.operands[1].tp))
+                xlog("\t{:04x} Handler {:04x} {:08x} {:d}({:d}) {:d}".format(h.tp, i, UINT(self.ivmbase + haddr), h.operands[0].tp, h.operands[0].sz, h.operands[1].tp))
             else:
-                print("\t{:04x} Handler {:04x} {:08x} keys {:d} regions {:d} size {:d}".format(h.tp, i, UINT(self.ivmbase + haddr), len(h.keys), len(h.regions), h.opcodeSize))
-            #print(" " + hex(h.tp))
+                xlog("\t{:04x} Handler {:04x} {:08x} keys {:d} regions {:d} size {:d}".format(h.tp, i, UINT(self.ivmbase + haddr), len(h.keys), len(h.regions), h.opcodeSize))
+            #xlog(" " + hex(h.tp))
 
             self.hndl[i] = h
             self.hndlCount += 1
@@ -2371,7 +2394,7 @@ class WILD(VM):
             i -= 1
         return -1
 
-    def StepFlow(self, h, rawOff, skipMutate):
+    def StepFlow(self, h, rawOff, skipMutate, dbg = False):
         if skipMutate:
             self.trHid = rawOff & 0xFFFF
             self.trAddr += h.opcodeSize
@@ -2379,40 +2402,45 @@ class WILD(VM):
             hoff = rawOff
 
             if h.opcodeSize in (OPSZ_SUB, OPSZ_RETN, OPSZ_INVALID):
-                print("h.opcodeSize in (OPSZ_SUB, OPSZ_RETN, OPSZ_INVALID) {:x}".format(h.opcodeSize))
+                xlog("h.opcodeSize in (OPSZ_SUB, OPSZ_RETN, OPSZ_INVALID) {:x}".format(h.opcodeSize))
                 return False
 
             if len(h.idxList) == 0:
                 if h.flowMutateIndex != -1:
+                    if dbg:
+                        xlog("Flow mutate {:d} {} {:x}, {:x}".format(h.flowMutateIndex, OpTxt(h.flowMutateMnemonic), hoff, h.flowMutateConst))
                     _, hoff = ComputeVal(h.flowMutateMnemonic, 3, hoff, h.flowMutateConst)
             else:
                 c = self.FindFirstKeyAfter(h, h.idxList[0])
                 e = self.FindLastKeyBefore(h, h.idxList[-1])
 
                 if c == -1 or e == -1:
-                    print("c == -1 or e == -1")
+                    xlog("c == -1 or e == -1")
                     return False
 
                 fmutate = False
                 while c <= e:
                     if h.flowMutateIndex != -1 and not fmutate and h.keys[c].idx > h.flowMutateIndex:
-                        #print("Flow mutate {:d} {} {:x}, {:x}".format(h.flowMutateIndex, OpTxt(h.flowMutateMnemonic), hoff, h.flowMutateConst))
+                        if dbg:
+                            xlog("Flow mutate {:d} {} {:x}, {:x}".format(h.flowMutateIndex, OpTxt(h.flowMutateMnemonic), hoff, h.flowMutateConst))
                         _, hoff = ComputeVal(h.flowMutateMnemonic, 3, hoff, h.flowMutateConst)
                         fmutate = True
 
-                    res, hoff = self.PerformHndlKey(h, c, hoff)
+                    res, hoff = self.PerformHndlKey(h, c, hoff, dbg)
                     if not res:
-                        print("if not res")
+                        xlog("if not res")
                         return False
                     c += 1
 
                 if h.flowMutateIndex != -1 and not fmutate:
+                    if dbg:
+                        xlog("Flow mutate {:d} {} {:x}, {:x}".format(h.flowMutateIndex, OpTxt(h.flowMutateMnemonic), hoff, h.flowMutateConst))
                     _, hoff = ComputeVal(h.flowMutateMnemonic, 3, hoff, h.flowMutateConst)
 
             self.trHid = hoff & 0xFFFF
             self.trAddr += h.opcodeSize
 
-        print("Flow {:x} {:x}\n".format(self.trAddr, self.trHid))
+        xlog("Flow {:x} {:x}\n".format(self.trAddr, self.trHid))
         return True
 
     def PerformHndlKey(self, h, i, data, dbg = False):
@@ -2420,93 +2448,97 @@ class WILD(VM):
         k = h.keys[i]
         # skip perform if condition exist and not satisfed
         if k.condition != None and not k.condition(self, k):
+            if dbg:
+                xlog("False condition")
             return (True, data)
 
         if k.dkeyparam:
             if k.tid != TID_REG:
-                print("[CodeDevirtualizer] Direct key param type != REG.")
+                xlog("[CodeDevirtualizer] Direct key param type != REG.")
                 return (False, data)
             srcKeyData = self.GetKey(k.parameter)
             if srcKeyData == None:
-                print("[CodeDevirtualizer] Could not get key data from source key.")
+                xlog("[CodeDevirtualizer] Could not get key data from source key.")
                 return (False, data)
             dstKeyData = self.GetKey(k.keyId)
             if srcKeyData == None:
-                print("[CodeDevirtualizer] Could not get key data from destination key.")
+                xlog("[CodeDevirtualizer] Could not get key data from destination key.")
                 return (False, data)
 
             if dbg:
-                print("VM[ {:x} ] ({:x})  {}:{:d}  VM[ {:x} ] ({:x})".format(k.keyId, dstKeyData,  OpTxt(k.mnemonic), k.sz,   k.parameter, srcKeyData ))
+                xlog("VM[ {:x} ] ({:x})  {}:{:d}  VM[ {:x} ] ({:x})".format(k.keyId, dstKeyData,  OpTxt(k.mnemonic), k.sz,   k.parameter, srcKeyData ))
             _,dstKeyData = ComputeVal(k.mnemonic, k.sz, dstKeyData, srcKeyData)
 
             if not self.SetKey(k.keyId, dstKeyData):
-                print("[CodeDevirtualizer] Could not set key data for destination key.")
+                xlog("[CodeDevirtualizer] Could not set key data for destination key.")
                 return (False, data)
         elif k.operand > 0:
             if k.tid != TID_REG:
-                print("[CodeDevirtualizer] Indirect key type != REG.")
+                xlog("[CodeDevirtualizer] Indirect key type != REG.")
                 return (False, data)
             keyData = self.GetKey(k.keyId)
             if keyData == None:
-                print("[CodeDevirtualizer] k.operand Could not get data from key.  (keyId {:d})".format(k.keyId))
+                xlog("[CodeDevirtualizer] k.operand Could not get data from key.  (keyId {:d})".format(k.keyId))
                 return (False, data)
 
             if dbg:
-                print(".. {}:{:d}   {:x}   {:x} ({:x})".format(OpTxt(k.mnemonic), k.sz, data, k.keyId, keyData))
+                xlog(".. {}:{:d}   {:x}   {:x} ({:x})".format(OpTxt(k.mnemonic), k.sz, data, k.keyId, keyData))
             _, data = ComputeVal(k.mnemonic, k.sz, data, keyData)
         elif k.tid == TID_VAL:
             keyData = self.GetKey(k.keyId)
             if keyData == None:
-                print("[CodeDevirtualizer] TID_VAL Could not get data from key.")
+                xlog("[CodeDevirtualizer] TID_VAL Could not get data from key.")
                 return (False, data)
 
             if dbg:
-                print("VM[ {:x} ({:x}) ]  {}:{:d}  {:x}".format(k.keyId, keyData,  OpTxt(k.mnemonic), k.sz,   k.parameter))
+                xlog("VM[ {:x} ({:x}) ]  {}:{:d}  {:x}".format(k.keyId, keyData,  OpTxt(k.mnemonic), k.sz,   k.parameter))
             _, keyData = ComputeVal(k.mnemonic, k.sz, keyData, k.parameter)
 
             if not self.SetKey(k.keyId, keyData):
-                print("[CodeDevirtualizer] Could not set data for key.")
+                xlog("[CodeDevirtualizer] Could not set data for key.")
                 return (False, data)
         else:
             if k.tid != TID_REG:
-                print("[CodeDevirtualizer] Accessor key type != REG.")
+                xlog("[CodeDevirtualizer] Accessor key type != REG.")
                 return (False, data)
             keyData = self.GetKey(k.keyId)
             if keyData == None:
-                print("[CodeDevirtualizer] else TID_REG Could not get data from key.")
+                xlog("[CodeDevirtualizer] else TID_REG Could not get data from key.")
                 return (False, data)
 
             if dbg:
-                print("VM[ {:x} ({:x}) ]  {}:{:d}  {:x}".format(k.keyId, keyData, OpTxt(k.mnemonic), k.sz, data))
+                xlog("VM[ {:x} ({:x}) ]  {}:{:d}  {:x}".format(k.keyId, keyData, OpTxt(k.mnemonic), k.sz, data))
             _, keyData = ComputeVal(k.mnemonic, k.sz, keyData, data)
             if not self.SetKey(k.keyId, keyData):
-                print("[CodeDevirtualizer] Could not set data for key.")
+                xlog("[CodeDevirtualizer] Could not set data for key.")
                 return (False, data)
         return (True, data)
 
 
-    def PerformKeySeq(self, h, bix, eix, data):
+    def PerformKeySeq(self, h, bix, eix, data, dbg = False):
         c = self.FindFirstKeyAfter(h, bix)
         e = self.FindLastKeyBefore(h, eix)
         if c == -1 or e == -1:
             return (False, data)
 
         while c <= e:
-            #print("Perform {:d}".format(h.keys[c].idx))
-            (res, data) = self.PerformHndlKey(h, c, data)
+            if dbg:
+                xlog("Perform {:d}".format(h.keys[c].idx))
+            (res, data) = self.PerformHndlKey(h, c, data, dbg)
             if res == False:
                 return (False, data)
             c += 1
         return (True, data)
 
-    def StepOpcodeRegions(self, h, reader):
+    def StepOpcodeRegions(self, h, reader, dbg = False):
         keyData = 0
         if len(h.regions) == 0:
             _, keyData = self.PerformKeySeq(h, 0, h.flowDataIndex, keyData)
         else:
             if len(h.keys) > 0 and h.keys[0].idx < h.regions[0].indexStart:
-                #print("PRESTEP Region:  {:d}-{:d}".format( 0, h.regions[0].indexStart - 1))
-                _, keyData = self.PerformKeySeq(h, 0, h.regions[0].indexStart - 1, keyData)
+                if dbg:
+                    xlog("PRESTEP Region:  {:d}-{:d}".format( 0, h.regions[0].indexStart - 1))
+                _, keyData = self.PerformKeySeq(h, 0, h.regions[0].indexStart - 1, keyData, dbg)
 
             for i in range(len(h.regions)):
                 r = h.regions[i]
@@ -2524,7 +2556,8 @@ class WILD(VM):
                     reg2 = reader.Read2(r.indexEnd)
                     rv1 = self.GetVMReg(reg1)
                     rv2 = self.GetVMReg(reg2)
-                    print("VMXCHG: VM[{:x}] ({:x}) <=> VM[{:x}] ({:x})".format(reg1, rv1, reg2, rv2))
+                    if self.traceLog:
+                        xlog("VMXCHG: VM[{:x}] ({:x}) <=> VM[{:x}] ({:x})".format(reg1, rv1, reg2, rv2))
                     self.vmReg[reg1] = rv2
                     self.vmReg[reg2] = rv1
 
@@ -2534,9 +2567,10 @@ class WILD(VM):
                 else:
                     indexEnd = h.flowReadIndex
 
-                #print("Step Region: {:x}  {:x}    {:d}({:d})-{:d}".format(r.opcodeOffset, keyData, r.indexStart, r.indexEnd, indexEnd - 1))
+                if dbg:
+                    xlog("Step Region: {:x}  {:x}    {:d}({:d})-{:d}".format(r.opcodeOffset, keyData, r.indexStart, r.indexEnd, indexEnd - 1))
 
-                _, keyData = self.PerformKeySeq(h, r.indexStart, indexEnd - 1, keyData)
+                _, keyData = self.PerformKeySeq(h, r.indexStart, indexEnd - 1, keyData, dbg)
         return True
 
 
@@ -2550,6 +2584,13 @@ class WILD(VM):
         rk = rkInstruction()
         rk.addr = h.hndlID
         rk.ID = WOP_SSTACK
+
+        rk.operand[0].ID = ID_REG
+        rk.operand[0].value = (self.ConvReg(regid) << 4) | 3
+
+        #if self.vmEspReg == -1:
+        self.vmEspReg = regid
+        self.realRegs.add(regid)
 
         self.traced.Add(rk, self.trAddr)
         return  self.StepFlow(h, reader.Read2(h.flowReadOffset), True)
@@ -2571,6 +2612,10 @@ class WILD(VM):
         self.ResetKeyData()
 
         self.step_params[0] = "RESET"
+
+        #self.trStkReg = 7
+        #self.realRegs.clear()
+        #self.vmEspReg = -1
 
         rk = rkInstruction()
         rk.addr = h.hndlID
@@ -2628,7 +2673,7 @@ class WILD(VM):
         rk.ID = OP_STOS
         #rk.operand[0].ID =
 
-        print("STOS")
+        xlog("STOS")
         exit(1)
         self.traced.Add(rk, self.trAddr)
         return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
@@ -2676,7 +2721,8 @@ class WILD(VM):
         rk.operand[0].ID = ID_VAL32
         rk.operand[0].value = distance
 
-        LABELS.GetLabel( UINT(self.trAddr + distance), hid )
+        l = LABELS.GetLabel( UINT(self.trAddr + distance), hid )
+        l.specialData = (self.vmReg.copy(), self.realRegs.copy(), self.vmEspReg)
 
         self.traced.Add(rk, self.trAddr)
         return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
@@ -2717,7 +2763,36 @@ class WILD(VM):
         rk.operand[0].ID = ID_VAL32
         rk.operand[0].value = distance
 
-        LABELS.GetLabel( UINT(self.trAddr + distance), hid )
+        l = LABELS.GetLabel( UINT(self.trAddr + distance), hid )
+        l.specialData = (self.vmReg.copy(), self.realRegs.copy(), self.vmEspReg)
+
+        self.traced.Add(rk, self.trAddr)
+        return True
+
+    def StepUndef(self, h, reader):
+        tp = reader.Read1(h.opcodeOffsets[0])
+        retaddr = reader.Read4(h.opcodeOffsets[1])
+
+        self.step_params[0] = "UNDEF"
+        self.step_params[1] = tp
+        self.step_params[2] = retaddr
+
+        retaddr = UINT(self.imageBase + retaddr)
+
+        rk = rkInstruction()
+        rk.addr = h.hndlID
+        rk.ID = WOP_UNDEF
+        rk.operand[0].ID = ID_VAL32
+        rk.operand[0].value = retaddr
+
+        mm = self.GetMM(retaddr)
+        _,urk = XrkDecode(mm)
+
+        cont, p1, p2 = self.CheckEnterVM(retaddr + urk.size)
+        if cont:
+            l = LABELS.GetLabel(UINT(self.imageBase + p1), p2)
+            rk.operand[1].ID = ID_VAL32
+            rk.operand[1].value = l.addr
 
         self.traced.Add(rk, self.trAddr)
         return True
@@ -2745,42 +2820,57 @@ class WILD(VM):
             return self.StepJmpIns(h, reader)
         elif h.tp == WH_JCC_OUT:
             return self.StepJccOut(h, reader)
+        elif h.tp == WH_UNDEF:
+            return self.StepUndef(h, reader)
 
         return self.StepAdvanced(h, reader)
 
     def ProcessVirtualPointer(self, l):
         self.trHid = l.pushVal
         self.trAddr = l.addr
+        if l.specialData != None:
+            self.vmEspReg = l.specialData[2]
+            self.vmReg = l.specialData[0].copy()
+            self.realRegs = l.specialData[1].copy()
+        else:
+            self.trStkReg = 7
         while True:
             if self.trAddr in LABELS.proceed:
-                print("{:08x} hndl {:04x} already proceeded. break.".format(self.trAddr, self.trHid))
+                xlog("{:08x} hndl {:04x} already proceeded. break.".format(self.trAddr, self.trHid))
                 break
 
             LABELS.proceed[self.trAddr] = self.trHid
 
-            #print("{:08x} hndl {:04x}".format(self.trAddr, self.trHid))
+            #xlog("{:08x} hndl {:04x}".format(self.trAddr, self.trHid))
 
             if self.trHid not in self.hndl and not self.DeofusHndl(self.trHid):
-                print("Error deoufus hndl {:04x}".format(self.trHid))
+                xlog("Error deoufus hndl {:04x}".format(self.trHid))
                 return False
 
             rdr = READER(self, self.trAddr)
 
-            kks = ""
-            for kk in self.Keys:
-                kks += "{:x}:{:x}  ".format(kk.Offset, kk.Data)
-            print(kks)
-
             self.step_params[0] = None
 
             h = self.hndl[self.trHid]
-            print("{:08x} hndl {:04x} ( {:x}  {:x} )".format(self.trAddr, self.trHid, h.tp, h.dumpAddr))
+            xlog("{:08x} hndl {:04x} ( {:x}  {:x}  size {:x})".format(self.trAddr, self.trHid, h.tp, h.dumpAddr, h.opcodeSize))
+
+            kks = ""
+            for kk in self.Keys:
+                kks += "{:x}:{:x}  ".format(kk.Offset, kk.Data)
+            xlog(kks)
+
+            kks = ""
+            for rrg in self.realRegs:
+                kks += "{:x}:{:x} ".format(rrg, self.GetVMReg(rrg))
+            xlog(kks)
+
             if not self.StepHandler(h, rdr):
+                xlog("Not stepped")
                 return False
 
             if self.step_params[0] != None:
-                print(self.step_params[0])
-                print("")
+                xlog(self.step_params[0])
+                xlog("")
 
             if self.IsFlowHandler(h):
                 break
@@ -2795,6 +2885,7 @@ class WILD(VM):
         self.traced.Clear()
         self.step_params = dict()
         self.trStkReg = 7
+        succ = True
 
         while True:
             l = LABELS.GetNextToProceed()
@@ -2803,21 +2894,58 @@ class WILD(VM):
 
             l.proceed = 1
 
-            print("\nLABEL at {:08x} {:04x}\n".format(l.addr, l.pushVal))
+            xlog("\nLABEL at {:08x} {:04x}\n".format(l.addr, l.pushVal))
 
             if not self.ProcessVirtualPointer(l):
+                succ = False
                 break
 
         self.traced.SortByAddr()
+        self.Simplify(self.traced)
 
-        for l in self.traced.GetListing(1, 1, True, True):
-            print("{}".format(l))
+        for l in self.GetWildListing(self.traced, True, True, True):
+            xlog(l)
 
+        return succ
+        #for l in self.traced.GetListing(1, 1, True, True):
+        #    xlog("{}".format(l))
+
+    def GetWildListing(self, oplist, index = False, addr = False, labels = False):
+        lableList = list()
+        for l in LABELS.arr:
+            if l.used:
+                lableList.append(l.addr)
+        lableList.sort(reverse=True)
+
+        lst = list()
+        for i in range(oplist.count):
+            if len(lableList) and labels:
+                while len(lableList) and lableList[-1] <= oplist.heap[i].addr:
+                    lb = lableList.pop()
+                    lst.append("LABEL_{:x}:".format(lb))
+            op = oplist.heap[i].instr
+            t = ""
+            if index:
+                t += "{:d}\t ".format(i)
+            if addr:
+                t += "{:08x}\t ".format(oplist.heap[i].addr)
+            t += self.TxtWop(op)
+
+            if (op.ID >= OP_JA and op.ID <= OP_JS) or op.ID == OP_JMP and \
+                op.operand[0].TID() == TID_VAL:
+                aaadr = op.operand[0].value
+                if op.operand[0].value <= 0xFFFFFF:
+                    aaadr = UINT(oplist.heap[i].addr + op.operand[0].value)
+                if self.InBlock(aaadr):
+                    t += " \t ( {:08x} )".format(aaadr)
+
+            lst.append(t)
+        return lst
 
     def GetVMReg(self, rid):
         if rid in self.vmReg:
             return self.vmReg[rid]
-        return 0
+        return 0xFFFFFFFF
 
     def GetJccMnem(self, id):
         if id in self.jccMnemonicTypes:
@@ -2841,3 +2969,124 @@ class WILD(VM):
         if rk3.ID != OP_JMP:
             return (False, 0, 0)
         return (True, rk1.operand[0].value, rk2.operand[0].value)
+
+    def TxtOp(self, op):
+        txt = OpTxt(op)
+        if op.operand[0].ID != 0:
+            txt += " " + XrkTextOp(op, 0)
+
+        if op.operand[1].ID != 0:
+            txt += " " + XrkTextOp(op, 1)
+        return txt
+
+    def GetRegName(self, offset, sz):
+        if offset in self.realRegs:
+            return RegName(self.GetVMReg(offset), sz)
+        if self.vmEspReg != -1 and offset == self.vmEspReg:
+            return "VM_ESP"
+        return "R{:x}".format(offset)
+
+    def VMRegOper(self, op):
+        if op.TID() == TID_REG:
+            return (op.value >> 4) & 0xFF
+        elif op.TID() == TID_MEM:
+            return (op.xbase >> 4) & 0xFF
+
+    def TxtWopOperand(self, opr):
+        if opr.TID() == TID_REG:
+            if opr.value & 0xFFF0 == 0x1040:
+                return "VM_ESP"
+            elif opr.value & 0x2000:
+                if opr.Size() == 1:
+                    return "B,R{:x}".format(self.VMRegOper(opr))
+                elif opr.Size() == 2:
+                    return "W,R{:x}".format(self.VMRegOper(opr))
+                return "R{:x}".format(self.VMRegOper(opr))
+            else:
+                return RegName(opr.XBase(), opr.Size())
+        elif opr.TID() == TID_VAL:
+            return "0x{:x}".format(opr.value)
+        elif opr.TID() == TID_MEM:
+            if opr.val2 == 0 and opr.xbase != 0:
+                t = ""
+                if opr.Size() == 1:
+                    t = "BYTE PTR["
+                elif opr.Size() == 2:
+                    t = "WORD PTR["
+                elif opr.Size() == 3:
+                    t = "DWORD PTR["
+
+                if opr.xbase & 0xFFF0 == 0x1040:
+                    return t + "VM_ESP]"
+                elif opr.xbase & 0x2000:
+                    return t + "R{:x}]".format(self.VMRegOper(opr))
+                else:
+                    return t + RegName(self.VMRegOper(opr), opr.xbase & 0xF) + "]"
+            else:
+
+                sz = opr.ID & 0xF
+                t = PTRNAME[sz]
+                t += "["
+
+                if opr.GetB(1) != 0:
+                    sz = opr.GetB(1) & 0xf
+                    rid = opr.GetB(1) >> 4
+                    if sz == 2:
+                        t += REG16NAME[rid]
+                    elif sz == 3:
+                        t += REG32NAME[rid]
+                    else:
+                        t += "REG?"
+
+                if opr.GetB(2) != 0:
+                    if opr.GetB(1) != 0:
+                        t += "+"
+                    sz = opr.GetB(2) & 0xf
+                    rid = opr.GetB(2) >> 4
+                    if sz == 2:
+                        t += REG16NAME[rid]
+                    elif sz == 3:
+                        t += REG32NAME[rid]
+                    else:
+                        t += "REG?"
+                if opr.GetB(3) != 0:
+                    if opr.GetB(2) == 0:
+                        t += "ERROR"
+                    else:
+                        t += MULNAME[opr.GetB(3)]
+
+                if opr.val2 != 0 or (opr.GetB(1) == 0 and opr.GetB(2) == 0):
+                    if opr.GetB(1) != 0 or opr.GetB(2) != 0:
+                        t += "+"
+                    t += "0x{:x}".format(opr.val2)
+                t += "]"
+                return t
+        return "UNK"
+
+    def TxtWildOperator(self, op):
+        if op.ID in WILD_OPTXT:
+            return WILD_OPTXT[op.ID]
+        return ""
+
+    def TxtWop(self, op):
+        t = ""
+        if op.ID >= 0x1000:
+            t = self.TxtWildOperator(op)
+        else:
+            t = OpTxt(op)
+        if op.operand[0].ID != 0:
+            t += " " + self.TxtWopOperand(op.operand[0])
+
+        if op.operand[1].ID != 0:
+            t += ", " + self.TxtWopOperand(op.operand[1])
+        return t
+
+    def ConvReg(self, offset):
+        if offset in self.realRegs:
+            return self.GetVMReg(offset)
+        if self.vmEspReg != -1 and offset == self.vmEspReg:
+            return 0x104
+        return 0x200 | offset
+
+    def Simplify(self, trace):
+        pass

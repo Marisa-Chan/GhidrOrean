@@ -31,7 +31,7 @@ TH_NEG = 0x2006 #
 
 TH_MOV = 0x2007 #
 TH_MOVSX = 0x2008 #
-TH_MOVZX = 0x2009
+TH_MOVZX = 0x2009 #
 
 TH_ADD = 0x200a #
 TH_SUB = 0x200b #
@@ -39,12 +39,12 @@ TH_AND = 0x200c #
 TH_XOR = 0x200d #
 TH_OR = 0x200e #
 
-TH_SHL = 0x200f
-TH_SHR = 0x2010
-TH_RCL = 0x2011
-TH_RCR = 0x2012
-TH_ROL = 0x2013
-TH_ROR = 0x2014
+TH_SHL = 0x200f #
+TH_SHR = 0x2010 #
+TH_RCL = 0x2011 #
+TH_RCR = 0x2012 #
+TH_ROL = 0x2013 #
+TH_ROR = 0x2014 #
 
 TH_CMP = 0x2015 #
 TH_TEST = 0x2016 #
@@ -55,12 +55,13 @@ TH_COUNT = 0x2018
 
 TH_UNSHUFLE = 0x2019
 
+TH_IMGBASE = 0x201A
+
+
 THOP_UNSHUFFLE = 0x1100
 
-TH_OPR_UNK = 0
-TH_OPR_REG = 1
-TH_OPR_IMM = 2
-TH_OPR_MEM = 3
+
+TIGER_OPTXT = {THOP_UNSHUFFLE: "UNSHUFFLE"}
 
 class REGTRACE:
     Key = -1
@@ -98,6 +99,8 @@ class TG_OP:
     decoders = None
     tkey = -1
     flags = 0
+    usei = -1
+    useopr = -1
 
     def __init__(self):
         self.decoders = []
@@ -113,7 +116,6 @@ class THNDL(WHNDL):
 
 class TIGER(WILD):
     tigerOperands = None
-
 
     def __init__(self, d):
         WILD.__init__(self, WILD_TIGER, d)
@@ -144,19 +146,29 @@ class TIGER(WILD):
             op = CMDSimpler.heap[i].instr
 
             for opk in opkey:
-                if op.ID == OP_MOVZX and op.operand[0].ID == ID_REG and \
-                   op.operand[1].IsMem16Roff(R_EBP, 0, 0, self.GetKeyOffset(opk) ):
+                if (op.ID == OP_MOVZX or (opk == TKEY_OPR1_32 and op.ID == OP_MOV))  and op.operand[0].ID == ID_REG and \
+                   op.operand[1].TID() == TID_MEM and \
+                   op.operand[1].Base() == R_EBP and \
+                   op.operand[1].GetB(2) == 0 and \
+                   op.operand[1].GetB(3) == 0 and \
+                   op.operand[1].val2 == self.GetKeyOffset(opk):
                     return (i, op)
         return (-1, None)
 
-    def MapUnaryOperation(self, h, idx, opid):
-        opKeyIns = None
+    def MapUnaryOperation(self, h, opid):
+
         i = 0
         while i < CMDSimpler.count:
             (ti, top) = self.FindOperandKeyReadIns( TKEY_OPERAND0, i)
+            isop1 = False
             if ti == -1:
-                i += 1
-                continue
+                if opid == OP_PUSH:
+                    (ti, top) = self.FindOperandKeyReadIns(TKEY_OPERAND1, i)
+                    isop1 = True
+
+                if ti == -1:
+                    i += 1
+                    continue
 
             i = ti
             optp = TH_OPR_REG
@@ -172,7 +184,7 @@ class TIGER(WILD):
                     if jop.ID == OP_MOV and \
                         jop.operand[0].IsReg( top.operand[0].Base() ):
                         if jop.operand[1].IsMem32Base( top.operand[0].Base() ):
-                            optp = TH_OPR_MEM
+                            optp = TH_OPR_MEM_IMM
                         else:
                             break
                     elif jop.ID == opid and \
@@ -185,13 +197,28 @@ class TIGER(WILD):
                         h.operands[0].tkey = TKEY_OPR0
 
                         return j
+
+                elif isop1 and stg == 0 and opid == OP_PUSH and \
+                    jop.ID == opid and \
+                    jop.operand[0].TID() == TID_REG and \
+                    jop.operand[0].Base() == top.operand[0].Base():
+                    h.addr = CMDSimpler.heap[j].addr
+                    h.operands[0].tp = TH_OPR_MEM_IMM
+                    h.operands[0].sz = jop.operand[0].Size()
+                    h.operands[0].idx = ti
+                    if isop1:
+                        if top.operand[1].val2 == self.GetKeyOffset(TKEY_OPR1_32):
+                            h.operands[0].tkey = TKEY_OPR1_32
+                        else:
+                            h.operands[0].tkey = TKEY_OPR1_16
+                    else:
+                        h.operands[0].tkey = TKEY_OPR0
+
+                    return j
+
             i += 1
         return -1
 
-
-
-    #def IsAccessOperator1(self, op):
-        #return op.ID == OP_MOVZX and op.operand[0].
 
     def FindOperand1VMSource(self, i, opt):
         op = CMDSimpler.heap[i].instr
@@ -216,7 +243,7 @@ class TIGER(WILD):
                             if cnt == 0 and opj.ID in (OP_MOVSX, OP_MOVZX):
                                 movop = opj.ID
                         else:
-                            print("Something wrong! It's must not happen.")
+                            xlog("Something wrong! It's must not happen.")
                             return (-1, 0, 0, 0)
                     elif opj.operand[1].TID() == TID_MEM:
                         if opj.operand[1].Base() == R_EBP:
@@ -230,7 +257,7 @@ class TIGER(WILD):
                             reg = opj.operand[1].XBase()
                             cnt += 1
                             if cnt >= 2:
-                                tp = TH_OPR_MEM
+                                tp = TH_OPR_MEM_IMM
                             elif movop == 0:
                                 movop = opj.ID
             elif opj.ID == OP_ADD and\
@@ -270,20 +297,20 @@ class TIGER(WILD):
                    jop.operand[1].IsReg(R_EBP):
                     stg += 1
                     if dbg:
-                        print("stg +1 at {:x}".format(CMDSimpler.heap[j].addr))
+                        xlog("stg +1 at {:x}".format(CMDSimpler.heap[j].addr))
                 elif stg == 1:
                     if jop.ID == OP_MOV and jop.operand[0].IsReg( topreg ):
                         if jop.operand[1].IsMem32Base( topreg ):
-                            op0tp = TH_OPR_MEM
+                            op0tp = TH_OPR_MEM_IMM
                         else:
                             break
                     elif jop.ID == OP_MOV and jop.operand[0].ID == ID_REG and jop.operand[1].IsMem32Roff( topreg, 0, 0, 0 ):
                         sepreg = jop.operand[0].XBase()
                         if dbg:
-                            print("sepreg", sepreg)
+                            xlog("sepreg", sepreg)
                     elif jop.ID == OP_MOV and jop.operand[0].TID() == TID_REG and jop.operand[0].XBase() == (topreg >> 4):
                         if dbg:
-                            print("break MOV reg at {:x}".format(CMDSimpler.heap[j].addr))
+                            xlog("break MOV reg at {:x}".format(CMDSimpler.heap[j].addr))
                         break
                     elif jop.ID == OP_MOV and jop.operand[0].ID == ID_REG and jop.operand[1].IsReg(topreg):
                         topreg = jop.operand[0].Base()
@@ -291,10 +318,11 @@ class TIGER(WILD):
                         jop.operand[0].TID() == TID_MEM and\
                         jop.operand[0].Base() == topreg:
 
-                        #if opid == OP_MOV:
-                        #    print("MOV", i, j, hex(CMDSimpler.heap[i].addr), hex(CMDSimpler.heap[j].addr))
-
                         (op1i, op1tp, movop, t1key) = self.FindOperand1VMSource(j, 1)
+
+                        #if opid == OP_RCR:
+                        #    xlog("RCR", op1i, op1tp, movop, t1key)
+
                         if op1i == -1:
                             break
 
@@ -338,7 +366,14 @@ class TIGER(WILD):
                         return j
                     elif jop.ID == OP_MOV and opid in (OP_MOVSX, OP_MOVZX) and jop.operand[0].TID() == TID_MEM and \
                             jop.operand[0].Base() == topreg:
-                        mreg = jop.operand[1].XBase()
+
+                        jj = j - 1
+                        while jj > -1:
+                            jjop = CMDSimpler.heap[jj].instr
+                            if jjop.ID == opid and \
+                               jjop.operand[0].ID == ID_REG and jjop.operand[0].XBase() == jop.operand[1].XBase():
+                                break
+                            jj -= 1
 
                         (op1i, op1tp, movop, t1key) = self.FindOperand1VMSource(j, 1)
 
@@ -355,6 +390,9 @@ class TIGER(WILD):
                         h.operands[1].wrksz = CMDSimpler.heap[op1i].instr.operand[1].Size()
                         h.operands[1].idx = op1i
                         h.operands[1].tkey = t1key
+                        if jj != -1:
+                            h.operands[1].usei = jj
+                            h.operands[1].useopr = 1
 
                         return j
             i += 1
@@ -378,18 +416,18 @@ class TIGER(WILD):
     def FindSourceReadOff(self, i, xbase):
         lst = self.BacktraceReg(i, xbase)
         if len(lst) == 0:
-            print("ESP backtrace not found")
+            xlog("ESP backtrace not found")
             return (-1, -1)
 
         bi = lst[-1]
         sop = CMDSimpler.heap[bi].instr
         if sop.ID not in (OP_MOV, OP_MOVZX):
-            print("not get offsrc")
+            xlog("not get offsrc")
             return (-1, -1)
 
         lst = self.BacktraceReg(bi, sop.operand[1].XBase())
         if len(lst) == 0:
-            print("no offsrc backtrace found")
+            xlog("no offsrc backtrace found")
             return (-1, -1)
 
         if len(lst) < 2:
@@ -405,10 +443,48 @@ class TIGER(WILD):
                 jop.operand[1].TID() == TID_VAL:
                 off = jop.operand[1].value
                 if off > 0x100:
-                    print("ERROR off > 0x100")
+                    xlog("ERROR off > 0x100")
                     return (-1, -1)
                 return (off, sop.operand[0].Size())
         return (-1, -1)
+
+    def TraceListAddr(self, i, opid):
+        lst = list()
+        xbase = CMDSimpler.heap[i].instr.operand[opid].XBase()
+        i -= 1
+        while i >= 0:
+            op = CMDSimpler.heap[i].instr
+
+            if IsOpClass(op.ID, 0, 0, 1) and \
+                op.operand[0].ID == ID_REG and op.operand[0].XBase() == xbase and \
+                op.operand[1].TID() == TID_VAL:
+                lst.append((i, op))
+            elif op.ID == OP_ADD and \
+               op.operand[0].ID == ID_REG and op.operand[0].XBase() == xbase:
+                if op.operand[1].IsReg(R_EBP):
+                    lst.append((i, op))
+                elif op.operand[1].ID == ID_MEM32 and \
+                     op.operand[1].Base() == R_EBP and op.operand[1].val2 == self.vmImgBaseOffset:
+                    lst.append((i, op))
+            elif op.ID in (OP_MOV, OP_MOVZX) and \
+               op.operand[0].ID == ID_REG and op.operand[0].XBase() == xbase:
+                if op.operand[1].ID == ID_REG:
+                    xbase = op.operand[1].XBase()
+                    lst.append((i, op))
+                elif op.operand[1].TID() == TID_MEM:
+                    if op.operand[1].Base() == R_EBP:
+                        lst.append((i, op))
+                        break
+                    elif op.operand[1].Base() != R_ESP and \
+                         op.operand[1].GetB(2) == 0 and op.operand[1].GetB(3) == 0 and op.operand[1].val2 == 0:
+                        xbase = op.operand[1].XBase()
+                        lst.append((i, op))
+                    else:
+                        break
+                else:
+                    break
+            i -= 1
+        return lst
 
 
     def TraceAddr(self, i, opid):
@@ -460,14 +536,14 @@ class TIGER(WILD):
         res.KeySz = lastSz
         if isreg:
             if deref == 2:
-                res.DataTp = 1 # CALL REG
+                res.DataTp = TH_OPR_REG # CALL REG
             elif deref == 3:
-                res.DataTp = 4
+                res.DataTp = TH_OPR_MEM_REG
         else:
             if deref == 1:
-                res.DataTp = 2
+                res.DataTp = TH_OPR_IMM
             elif deref == 2:
-                res.DataTp = 3
+                res.DataTp = TH_OPR_MEM_IMM
         return res
 
 
@@ -513,11 +589,11 @@ class TIGER(WILD):
             #     heap[2].instr.operand[1].Size() == 3 and \
             #     heap[3].instr.operand[1].IsMem32Base(R_EBP)and \
             #     heap[3].instr.operand[1].val2 == self.vmImgBaseOffset:
-            #     #print("OFF", hex(self.vmImgBaseOffset))
+            #     #xlog("OFF", hex(self.vmImgBaseOffset))
             #     h.operands[0].tp = TH_OPR_IMM
             # elif CMDSimpler.Bounds(4) and \
             #     heap[4].instr.ID == OP_MOV and heap[4].instr.operand[1].ID == ID_MEM32:
-            #         #print("OKLOL")
+            #         #xlog("OKLOL")
             #         if CMDSimpler.Bounds(5) and \
             #             heap[5].instr.ID == OP_MOV and \
             #             heap[5].instr.operand[1].IsMem32Base( heap[4].instr.operand[0].Base() ):
@@ -538,7 +614,7 @@ class TIGER(WILD):
                 h.opcodeOffsets[1] = addr2.Off
 
             h.tp = WH_CALL
-            #print("CALLLLLLLLLL")
+            #xlog("CALLLLLLLLLL")
             #exit(0)
             return True
         return False
@@ -551,7 +627,7 @@ class TIGER(WILD):
 
 
     def CheckHndlTPush(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_PUSH)
+        idx = self.MapUnaryOperation(h, OP_PUSH)
         if idx == -1:
             return False
 
@@ -559,58 +635,58 @@ class TIGER(WILD):
             CMDSimpler.heap[idx + 1].instr.ID not in (OP_POPF, ):
             h.tp = TH_PUSH
             h.opidx = idx
-            #print("PUSH")
+            #xlog("PUSH")
             return True
         return False
 
     def CheckHndlTPop(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_POP)
+        idx = self.MapUnaryOperation(h, OP_POP)
         if idx == -1:
             return False
 
         h.tp = TH_POP
         h.opidx = idx
-        # print("POP")
+        # xlog("POP")
         return True
 
     def CheckHndlTInc(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_INC)
+        idx = self.MapUnaryOperation(h,  OP_INC)
         if idx == -1:
             return False
 
         h.tp = TH_INC
         h.opidx = idx
-        #print("INC")
+        #xlog("INC")
         return True
 
     def CheckHndlTDec(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_DEC)
+        idx = self.MapUnaryOperation(h,  OP_DEC)
         if idx == -1:
             return False
 
         h.tp = TH_DEC
         h.opidx = idx
-        #print("DEC")
+        #xlog("DEC")
         return True
 
     def CheckHndlTNot(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_NOT)
+        idx = self.MapUnaryOperation(h,  OP_NOT)
         if idx == -1:
             return False
 
         h.tp = TH_NOT
         h.opidx = idx
-        #print("NOT")
+        #xlog("NOT")
         return True
 
     def CheckHndlTNeg(self, h):
-        idx = self.MapUnaryOperation(h, 0, OP_NEG)
+        idx = self.MapUnaryOperation(h, OP_NEG)
         if idx == -1:
             return False
 
         h.tp = TH_NEG
         h.opidx = idx
-        #print("NEG")
+        #xlog("NEG")
         return True
 
     def CheckHndlTMov(self, h):
@@ -620,7 +696,7 @@ class TIGER(WILD):
 
         h.tp = TH_MOV
         h.opidx = idx
-        #print("MOV")
+        #xlog("MOV")
         return True
 
     def CheckHndlTMovsx(self, h):
@@ -630,7 +706,7 @@ class TIGER(WILD):
 
         h.tp = TH_MOVSX
         h.opidx = idx
-        #print("MOVSX")
+        #xlog("MOVSX")
         return True
 
     def CheckHndlTMovzx(self, h):
@@ -640,7 +716,7 @@ class TIGER(WILD):
 
         h.tp = TH_MOVZX
         h.opidx = idx
-        #print("MOVZX")
+        #xlog("MOVZX")
         return True
 
     def CheckHndlTAdd(self, h):
@@ -650,7 +726,7 @@ class TIGER(WILD):
 
         h.tp = TH_ADD
         h.opidx = idx
-        #print("ADD")
+        #xlog("ADD")
         return True
 
     def CheckHndlTSub(self, h):
@@ -660,7 +736,7 @@ class TIGER(WILD):
 
         h.tp = TH_SUB
         h.opidx = idx
-        #print("MOV")
+        #xlog("MOV")
         return True
 
     def CheckHndlTAnd(self, h):
@@ -670,7 +746,7 @@ class TIGER(WILD):
 
         h.tp = TH_AND
         h.opidx = idx
-        #print("AND")
+        #xlog("AND")
         return True
 
     def CheckHndlTXor(self, h):
@@ -680,7 +756,7 @@ class TIGER(WILD):
 
         h.tp = TH_XOR
         h.opidx = idx
-        #print("XOR")
+        #xlog("XOR")
         return True
 
     def CheckHndlTOr(self, h):
@@ -690,7 +766,7 @@ class TIGER(WILD):
 
         h.tp = TH_OR
         h.opidx = idx
-        #print("OR")
+        #xlog("OR")
         return True
 
     def CheckHndlTShl(self, h):
@@ -700,7 +776,7 @@ class TIGER(WILD):
 
         h.tp = TH_SHL
         h.opidx = idx
-        #print("SHL")
+        #xlog("SHL")
         return True
 
     def CheckHndlTShr(self, h):
@@ -710,7 +786,7 @@ class TIGER(WILD):
 
         h.tp = TH_SHR
         h.opidx = idx
-        #print("SHR")
+        #xlog("SHR")
         return True
 
     def CheckHndlTRcl(self, h):
@@ -720,7 +796,7 @@ class TIGER(WILD):
 
         h.tp = TH_RCL
         h.opidx = idx
-        #print("RCL")
+        #xlog("RCL")
         return True
 
     def CheckHndlTRcr(self, h):
@@ -730,7 +806,7 @@ class TIGER(WILD):
 
         h.tp = TH_RCR
         h.opidx = idx
-        #print("RCR")
+        #xlog("RCR")
         return True
 
     def CheckHndlTRol(self, h):
@@ -740,7 +816,7 @@ class TIGER(WILD):
 
         h.tp = TH_ROL
         h.opidx = idx
-        #print("ROL")
+        #xlog("ROL")
         return True
 
     def CheckHndlTRor(self, h):
@@ -750,7 +826,7 @@ class TIGER(WILD):
 
         h.tp = TH_ROR
         h.opidx = idx
-        #print("ROR")
+        #xlog("ROR")
         return True
 
     def CheckHndlTCmp(self, h):
@@ -760,7 +836,7 @@ class TIGER(WILD):
 
         h.tp = TH_CMP
         h.opidx = idx
-        #print("CMP")
+        #xlog("CMP")
         return True
 
     def CheckHndlTTest(self, h):
@@ -770,7 +846,7 @@ class TIGER(WILD):
 
         h.tp = TH_TEST
         h.opidx = idx
-        #print("TEST")
+        #xlog("TEST")
         return True
 
     def CheckHndlTImul(self, h):
@@ -780,7 +856,7 @@ class TIGER(WILD):
 
         h.tp = TH_IMUL
         h.opidx = idx
-        #print("IMUL")
+        #xlog("IMUL")
         return True
 
     def CheckHndlUnshuffle(self, h):
@@ -818,6 +894,47 @@ class TIGER(WILD):
         h.opidx = 59
         return True
 
+    def CheckHndlAddImgBase(self, h):
+        opKeyIns = None
+        i = 0
+        while i < CMDSimpler.count:
+            (ti, top) = self.FindOperandKeyReadIns(TKEY_OPERAND0, i)
+            if ti == -1:
+                i += 1
+                continue
+
+            i = ti
+            stg = 0
+            for j in range(i + 1, CMDSimpler.count):
+                jop = CMDSimpler.heap[j].instr
+                if stg == 0 and \
+                        jop.ID == OP_ADD and \
+                        jop.operand[0].IsReg(top.operand[0].Base()) and \
+                        jop.operand[1].IsReg(R_EBP):
+                    stg += 1
+                elif stg == 1:
+                    if jop.ID == OP_MOV and jop.operand[0].IsReg(top.operand[0].Base()) and \
+                        not jop.operand[1].IsMem32Base(top.operand[0].Base()):
+                        break
+                    elif jop.ID == OP_ADD and \
+                            jop.operand[0].TID() == TID_MEM and \
+                            jop.operand[0].Base() == top.operand[0].Base():
+
+                        lst = self.TraceListAddr(j, 1)
+                        if len(lst) == 1 and lst[0][1].operand[1].TID() == TID_MEM and lst[0][1].operand[1].val2 == self.vmImgBaseOffset:
+                            h.addr = CMDSimpler.heap[j].addr
+                            h.tp = TH_IMGBASE
+                            h.operands[0].tp = TH_OPR_REG
+                            h.operands[0].sz = 3
+                            h.operands[0].idx = ti
+                            h.operands[0].tkey = TKEY_OPR0
+                            h.opidx = j
+                            return True
+                        else:
+                            break
+            i += 1
+        return False
+
     def DecryptTigerOperandData(self, h, opr):
         ops = TKEY_OPERAND0
         if opr == 1:
@@ -825,7 +942,7 @@ class TIGER(WILD):
 
         (idx, top) = self.FindOperandKeyReadIns(ops, 0)
         if idx != -1:
-            print(idx, OpTxt(top))
+            xlog(idx, OpTxt(top))
             idx += 1
             while CMDSimpler.Bounds(idx):
                 op = CMDSimpler.heap[idx].instr
@@ -833,10 +950,10 @@ class TIGER(WILD):
                     op.operand[0].ID == ID_REG and \
                     op.operand[0].XBase() == top.operand[0].XBase() and\
                     op.operand[1].TID() == TID_VAL:
-                    print("Decoder {:d} {} {:d} {:x}".format(opr, OpTxt(op), op.operand[1].Size(), op.operand[1].value))
+                    xlog("Decoder {:d} {} {:d} {:x}".format(opr, OpTxt(op), op.operand[1].Size(), op.operand[1].value))
                     h.operands[opr].decoders.append( TG_OP_DEC(op.ID, op.operand[1].Size(), op.operand[1].value) )
                 else:
-                    print("break {:d} {} {:d} {:x}".format(opr, OpTxt(op), op.operand[1].Size(), op.operand[1].value))
+                    xlog("break {:d} {} {:d} {:x}".format(opr, OpTxt(op), op.operand[1].Size(), op.operand[1].value))
                     break
                 idx += 1
         return True
@@ -866,17 +983,79 @@ class TIGER(WILD):
 
         op = CMDSimpler.heap[h.opidx].instr
         if h.operands[opr].idx != 0:
-            lst = reversed(self.BacktraceReg(h.opidx - 1, op.operand[opr].XBase()))
-            for d in lst:
+            lst = self.BacktraceReg(h.opidx - 1, op.operand[opr].XBase())
+
+            while True:
+                if len(lst) == 1:
+                    lop = CMDSimpler.heap[lst[0]].instr
+                    if lop.ID == OP_MOV and lop.operand[1].TID() == TID_MEM and lop.operand[1].Base() != R_EBP:
+                        lst = self.BacktraceReg(lst[0] - 1, lop.operand[1].XBase())
+                    else:
+                        break
+                else:
+                    break
+
+            for d in reversed(lst):
                 dop = CMDSimpler.heap[d].instr
                 if IsOpClass(dop.ID, 0, 0, 1) and \
                     dop.operand[1].TID() == TID_VAL:
-                    #print("Decoder {:d} {} {:d} {:x}".format(opr, OpTxt(dop), dop.operand[1].Size(), dop.operand[1].value))
                     h.operands[opr].decoders.append( TG_OP_DEC(dop.ID, dop.operand[1].Size(), dop.operand[1].value) )
         return True
 
+    def DecryptTigerOperandDataMy2(self, h, opr):
+        if h.opidx == -1:
+            return True
+
+        opidx = h.opidx
+        opn = opr
+        if h.operands[opr].usei != -1:
+            opidx = h.operands[opr].usei
+            opn = h.operands[opr].useopr
+        op = CMDSimpler.heap[opidx].instr
+        if h.operands[opr].idx != 0:
+            lst = self.TraceListAddr(opidx, opn)
+
+            if len(lst) == 0:
+                return True
+
+            lop = lst.pop()[1]
+            if lop.ID not in (OP_MOV, OP_MOVZX, OP_MOVSX) or \
+               lop.operand[1].TID() != TID_MEM or lop.operand[1].val2 != self.GetKeyOffset(h.operands[opr].tkey):
+                return True
+
+            h.operands[opr].tp = TH_OPR_IMM
+
+            movcnt = 0
+            if op.operand[opr].TID() == TID_MEM:
+                movcnt = 1
+
+            while len(lst) > 0:
+                lop = lst.pop()[1]
+                if IsOpClass(lop.ID, 0, 0, 1) and lop.operand[1].TID() == TID_VAL:
+                    h.operands[opr].decoders.append( TG_OP_DEC(lop.ID, lop.operand[1].Size(), lop.operand[1].value) )
+                elif lop.ID == OP_ADD and lop.operand[1].IsReg(R_EBP):
+                    h.operands[opr].tp = TH_OPR_REG
+                elif lop.ID in (OP_MOV, OP_MOVZX, OP_MOVSX) and lop.operand[1].TID() == TID_MEM:
+                    movcnt += 1
+
+            if movcnt > 2:
+                xlog("!", "if movcnt > 2:", hex(h.hndlID), movcnt)
+
+            if movcnt == 2 and h.operands[opr].tp == TH_OPR_REG:
+                h.operands[opr].tp = TH_OPR_MEM_REG
+            elif movcnt == 1 and h.operands[opr].tp == TH_OPR_IMM:
+                h.operands[opr].tp = TH_OPR_MEM_IMM
+            elif movcnt == 1 and h.operands[opr].tp == TH_OPR_REG:
+                pass
+            elif movcnt == 0 and h.operands[opr].tp == TH_OPR_IMM:
+                pass
+            else:
+                xlog("!", "movcnt", movcnt, "tp", h.operands[opr].tp, hex(h.hndlID))
+
+        return True
+
     def DecryptTigerData(self, h):
-        return self.DecryptTigerOperandDataMy(h, 0) and self.DecryptTigerOperandDataMy(h, 1)
+        return self.DecryptTigerOperandDataMy2(h, 0) and self.DecryptTigerOperandDataMy2(h, 1)
 
     def RecoveryAdvancedHandler(self, h):
         if (self.CheckHndlTCall(h) or \
@@ -905,7 +1084,8 @@ class TIGER(WILD):
            self.CheckHndlTMovsx(h) or \
            self.CheckHndlTMovzx(h) or \
            self.CheckHndlTMov(h) or \
-           self.CheckHndlUnshuffle(h)):
+           self.CheckHndlUnshuffle(h) or \
+           self.CheckHndlAddImgBase(h)):
             return self.DecryptTigerData(h)
         return True
 
@@ -916,735 +1096,77 @@ class TIGER(WILD):
         rk.ID = OP_NOP
         self.traced.Add(rk, reader.addr)
 
+        if h.idxList:
+            return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
         return self.StepFlow(h, reader.Read2(h.flowReadOffset), True)
 
     def StepPop(self, h, reader):
         self.StepOpcodeRegions(h, reader)
 
-        regid = self.GetKeyData(TKEY_OPR0)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
         self.step_params[0] = "POP"
-        self.step_params[1] = regid
-
-        print("POP VM[{:x}]".format(regid))
 
         rk = rkInstruction()
         rk.ID = OP_POP
 
-        if self.trStkReg < 0:
-            if h.operands[0].tp == TH_OPR_REG:
-                rk.operand[0].ID = ID_REG
-                rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            else:
-                rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-                rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-        else:
+        val = self.StepOperand(h, 0, rk.operand[0])
+
+        self.step_params[1] = val
+
+        if self.trStkReg >= 0:
             irlreg = self.trStkReg
             self.trStkReg -= 1
 
-            if irlreg != 4:
-                self.vmReg[regid] = irlreg
+            if True:
+                #irlreg != 4:
+                self.vmReg[val] = irlreg
+                self.realRegs.add(val)
 
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (irlreg << 4) | 3
+            self.StepOperand(h, 0, rk.operand[0])
+
+        if self.traceLog:
+            xlog(self.TxtWop(rk))
 
         self.traced.Add(rk, reader.addr)
 
         return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
 
-    def StepTest(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "TEST"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_TEST
-
-        synt = "TEST "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        else:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepCmp(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "CMP"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_CMP
-
-        synt = "CMP "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepSub(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "SUB"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_SUB
-
-        synt = "SUB "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepAdd(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "ADD"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_ADD
-
-        synt = "ADD "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepAnd(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "AND"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_AND
-
-        synt = "AND "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepOr(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "OR"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_OR
-
-        synt = "OR "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepXor(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "XOR"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_XOR
-
-        synt = "XOR "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepUniBin(self, h, reader, TXTMNEM, MNEM):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = TXTMNEM
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
+    def StepUniBin(self, h, reader, TXTMNEM, MNEM, dbg = False):
+        self.StepOpcodeRegions(h, reader, dbg)
 
         rk = rkInstruction()
         rk.ID = MNEM
 
-        synt = TXTMNEM + " "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepUnary(self, h, reader, TXTMNEM, MNEM):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        print(regid)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
+        val1 = self.StepOperand(h, 0, rk.operand[0])
+        val2 = self.StepOperand(h, 1, rk.operand[1])
 
         self.step_params[0] = TXTMNEM
-        self.step_params[1] = regid
+        self.step_params[1] = val1
+        self.step_params[2] = val2
+
+        if self.traceLog:
+            xlog(self.TxtWop(rk))
+
+        self.traced.Add(rk, reader.addr)
+
+        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False, dbg)
+
+    def StepUnary(self, h, reader, TXTMNEM, MNEM, dbg = False):
+        self.StepOpcodeRegions(h, reader, dbg)
 
         rk = rkInstruction()
         rk.ID = MNEM
 
-        synt = TXTMNEM + " "
+        val = self.StepOperand(h, 0, rk.operand[0])
 
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{} ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        elif h.operands[0].tp == TH_OPR_IMM:
-            rk.operand[0].ID = ID_VALx | h.operands[0].sz
-            rk.operand[0].value = regid
-            synt += "{:x} ".format(regid)
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}] ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
+        self.step_params[0] = TXTMNEM
+        self.step_params[1] = val
 
-        print(synt)
+        if self.traceLog:
+            xlog(self.TxtWop(rk))
 
         self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
 
-    def StepInc(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        self.step_params[0] = "INC"
-        self.step_params[1] = regid
-
-        rk = rkInstruction()
-        rk.ID = OP_INC
-
-        synt = "INC "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{} ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}] ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepDec(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        self.step_params[0] = "DEC"
-        self.step_params[1] = regid
-
-        rk = rkInstruction()
-        rk.ID = OP_DEC
-
-        synt = "DEC "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{} ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}] ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepNot(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        self.step_params[0] = "NOT"
-        self.step_params[1] = regid
-
-        rk = rkInstruction()
-        rk.ID = OP_NOT
-
-        synt = "NOT "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{} ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}] ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepNeg(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        self.step_params[0] = "NEG"
-        self.step_params[1] = regid
-
-        rk = rkInstruction()
-        rk.ID = OP_NEG
-
-        synt = "NEG "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{} ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}] ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepMov(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "MOV"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_MOV
-
-        synt = "MOV "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
-
-    def StepMovsx(self, h, reader):
-        self.StepOpcodeRegions(h, reader)
-
-        regid = self.GetKeyData(h.operands[0].tkey)
-        regid2 = self.GetKeyData(h.operands[1].tkey)
-
-        for d in h.operands[0].decoders:
-            _,regid = ComputeVal(d.mnem, d.sz, regid, d.data)
-
-        for d in h.operands[1].decoders:
-            _,regid2 = ComputeVal(d.mnem, d.sz, regid2, d.data)
-
-        if h.operands[1].tp == TH_OPR_IMM:
-            if h.operands[1].sz == 1:
-                regid2 &= 0xFF
-            elif h.operands[1].sz == 2:
-                regid2 &= 0xFFFF
-
-        self.step_params[0] = "MOVSX"
-        self.step_params[1] = regid
-        self.step_params[2] = regid2
-
-        rk = rkInstruction()
-        rk.ID = OP_MOVSX
-
-        synt = "MOVSX "
-
-        if h.operands[0].tp == TH_OPR_REG:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(regid) << 4) | h.operands[0].sz
-            synt += "{}, ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-        else:
-            rk.operand[0].ID = ID_MEMx | h.operands[0].sz
-            rk.operand[0].SetB(1, (self.GetVMReg(regid) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        if h.operands[1].tp == TH_OPR_REG:
-            rk.operand[1].ID = ID_REG
-            rk.operand[1].value = (self.GetVMReg(regid2) << 4) | h.operands[1].sz
-            synt += "{}".format(RegName(self.GetVMReg(regid2), h.operands[1].sz))
-        elif h.operands[1].tp == TH_OPR_IMM:
-            rk.operand[1].ID = ID_VALx | h.operands[1].sz
-            rk.operand[1].value = regid2
-            synt += "{:x}".format(regid2)
-        elif h.operands[1].tp == TH_OPR_MEM:
-            rk.operand[1].ID = ID_MEMx | h.operands[1].sz
-            rk.operand[1].SetB(1, (self.GetVMReg(regid2) << 4) | 3)
-            synt += "[{}], ".format(RegName(self.GetVMReg(regid), h.operands[0].sz))
-
-        print(synt)
-
-        self.traced.Add(rk, reader.addr)
-        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
+        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False, dbg)
 
     def StepUnshuffle(self, h, reader):
         r1 = reader.Read2(h.opcodeOffsets[0])
@@ -1665,15 +1187,27 @@ class TIGER(WILD):
         p4 = reader.Read2(h.opcodeOffsets[9])
         p5 = reader.Read2(h.opcodeOffsets[10])
         p6 = reader.Read2(h.opcodeOffsets[11])
-        self.vmReg[p1] = rv1
-        self.vmReg[p2] = rv2
-        self.vmReg[p3] = rv3
-        self.vmReg[p4] = rv4
-        self.vmReg[p5] = rv5
-        self.vmReg[p6] = rv6
+        self.vmReg[p1] = rv6
+        self.vmReg[p2] = rv5
+        self.vmReg[p3] = rv4
+        self.vmReg[p4] = rv3
+        self.vmReg[p5] = rv2
+        self.vmReg[p6] = rv1
+
+        # seems
+        # 7 6 2 1 3 0
+        #xlog(rv6, rv5, rv4, rv3, rv2, rv1)
+
+        #self.realRegs.clear()
+        self.realRegs.add(p1)
+        self.realRegs.add(p2)
+        self.realRegs.add(p3)
+        self.realRegs.add(p4)
+        self.realRegs.add(p5)
+        self.realRegs.add(p6)
 
         self.step_params[0] = "UNSHUFFLE"
-        #print("--------------------------------------------------------")
+        #xlog("--------------------------------------------------------")
 
         rk = rkInstruction()
         rk.ID = THOP_UNSHUFFLE
@@ -1688,15 +1222,13 @@ class TIGER(WILD):
         rk.addr = h.hndlID
 
         if h.operands[1].tp != 0: # CALL
-            synt = "CALL "
             self.step_params[0] = "CALL"
             rk.ID = OP_CALL
         elif h.operands[0].tp != 0:
-            synt = "JMP "
             self.step_params[0] = "JMP"
             rk.ID = OP_JMP
         else:
-            print("CALL ERR")
+            xlog("CALL ERR")
             return False
 
         val = 0
@@ -1707,24 +1239,23 @@ class TIGER(WILD):
         elif h.operands[0].sz == 3:
             val = reader.Read4(h.opcodeOffsets[0])
 
-        if h.operands[0].tp == 1:
+        rk.operand[0].sz = h.operands[0].sz
+        if h.operands[0].tp == TH_OPR_REG:
             rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(val) << 4) | 3
-            synt += "{}".format(RegName(self.GetVMReg(val), 3))
-        elif h.operands[0].tp == 2:
+            rk.operand[0].value = (self.ConvReg(val) << 4) | 3
+        elif h.operands[0].tp == TH_OPR_IMM:
             rk.operand[0].ID = ID_VAL32
             if h.operands[0].flags != 0:
                 val = UINT(val + self.imageBase)
             rk.operand[0].value = val
-            synt += "{:x}".format(val)
-        elif h.operands[0].tp == 3:
+        elif h.operands[0].tp == TH_OPR_MEM_IMM:
             rk.operand[0].ID = ID_MEM32
-            rk.operand[0].value = val
-            synt += "[{:x}]".format(val)
-        elif h.operands[0].tp == 4:
-            rk.operand[0].ID = ID_REG
-            rk.operand[0].value = (self.GetVMReg(val) << 4) | 3
-            synt += "[{}]".format(RegName(self.GetVMReg(val), 3))
+            if h.operands[0].flags != 0:
+                val = UINT(val + self.imageBase)
+            rk.operand[0].val2 = val
+        elif h.operands[0].tp == TH_OPR_MEM_REG:
+            rk.operand[0].ID = ID_MEM32
+            rk.operand[0].xbase = (self.ConvReg(val) << 4) | 3
 
         if h.operands[1].tp != 0:
             val = 0
@@ -1736,54 +1267,87 @@ class TIGER(WILD):
                 val = reader.Read4(h.opcodeOffsets[1])
 
             retaddr = 0
-            if h.operands[1].tp == 1:
-                synt += "\t\tRET-> {}".format(RegName(self.GetVMReg(val), 3))
-            elif h.operands[1].tp == 2:
+            if h.operands[1].tp == TH_OPR_REG:
+                synt = "\t\tRET-> {}".format(RegName(self.GetVMReg(val), 3))
+            elif h.operands[1].tp == TH_OPR_IMM:
                 if h.operands[1].flags != 0:
                     val = UINT(val + self.imageBase)
-                synt += "\t\tRET-> {:x}".format(val)
+                synt = "\t\tRET-> {:x}".format(val)
                 retaddr = val
-            elif h.operands[1].tp == 3:
+            elif h.operands[1].tp == TH_OPR_MEM_IMM:
                 if h.operands[1].flags != 0:
                     val = UINT(val + self.imageBase)
-                synt += "\t\tRET-> [{:x}]".format(val)
+                synt = "\t\tRET-> [{:x}]".format(val)
                 m = self.GetMM(val)
                 if m != None:
                     retaddr = GetDWORD(val)
-            elif h.operands[1].tp == 4:
-                synt += "\t\tRET-> [{}]".format(RegName(self.GetVMReg(val), 3))
+            elif h.operands[1].tp == TH_OPR_MEM_REG:
+                synt = "\t\tRET-> [{}]".format(RegName(self.GetVMReg(val), 3))
 
             if retaddr != 0:
+                rk.operand[1].ID = ID_VAL32
+                rk.operand[1].value = retaddr
                 isvm, of, hid =  self.CheckEnterVM(retaddr)
                 if isvm:
-                    LABELS.GetLabel(UINT(of + self.imageBase), hid)
-                    #print("Add RET {:x} {:x}".format(UINT(of + self.imageBase), hid))
+                    l = LABELS.GetLabel(UINT(of + self.imageBase), hid)
+                    l.specialData = (self.vmReg.copy(), self.realRegs.copy(), self.vmEspReg)
+                    rk.operand[1].value = UINT(of + self.imageBase)
+                    #xlog("Add RET {:x} {:x}".format(UINT(of + self.imageBase), hid))
 
-        print(synt)
+        if self.traceLog:
+            xlog(self.TxtWop(rk) + synt)
 
         self.traced.Add(rk, self.trAddr)
         return True
 
+    def StepImgBase(self, h, reader):
+        self.StepOpcodeRegions(h, reader)
+
+        rk = rkInstruction()
+        rk.ID = OP_ADD
+
+        val1 = self.StepOperand(h, 0, rk.operand[0])
+        rk.operand[1].ID = ID_VAL32
+        rk.operand[1].value = self.imageBase
+
+        self.step_params[0] = "ADD"
+        self.step_params[1] = val1
+        self.step_params[2] = self.imageBase
+
+        if self.traceLog:
+            xlog(self.TxtWop(rk))
+
+        self.traced.Add(rk, reader.addr)
+
+        return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
 
     def StepAdvanced(self, h, reader):
+
         if h.tp == TH_NOP:
             return self.StepNop(h, reader)
         elif h.tp == TH_POP:
+            # HACK
+            if self.traced.count >= 2 and \
+               self.traced.heap[self.traced.count - 1].instr.ID == WOP_RESET and \
+               self.traced.heap[self.traced.count - 2].instr.ID == WOP_SSTACK and \
+               self.trStkReg < 0:
+                self.trStkReg = 7
+                xlog("HACK! Restore POP REGS")
             return self.StepPop(h, reader)
         elif h.tp == TH_PUSH:
             return self.StepUnary(h, reader, "PUSH", OP_PUSH)
         elif h.tp == TH_TEST:
-            return self.StepTest(h, reader)
+            return self.StepUniBin(h, reader, "TEST", OP_TEST)
         elif h.tp == TH_CMP:
-            return self.StepCmp(h, reader)
+            return self.StepUniBin(h, reader, "CMP", OP_CMP)
         elif h.tp == TH_SUB:
-            return self.StepSub(h, reader)
+            return self.StepUniBin(h, reader, "SUB", OP_SUB)
         elif h.tp == TH_ADD:
-            return self.StepAdd(h, reader)
+            return self.StepUniBin(h, reader, "ADD", OP_ADD)
         elif h.tp == TH_AND:
-            return self.StepAnd(h, reader)
+            return self.StepUniBin(h, reader, "AND", OP_AND)
         elif h.tp == TH_OR:
-            return self.StepOr(h, reader)
+            return self.StepUniBin(h, reader, "OR", OP_OR)
         elif h.tp == TH_XOR:
             return self.StepUniBin(h, reader, "XOR", OP_XOR)
         elif h.tp == TH_SHL:
@@ -1791,22 +1355,488 @@ class TIGER(WILD):
         elif h.tp == TH_SHR:
             return self.StepUniBin(h, reader, "SHR", OP_SHR)
         elif h.tp == TH_MOV:
-            return self.StepMov(h, reader)
+            return self.StepUniBin(h, reader, "MOV", OP_MOV)
         elif h.tp == TH_MOVSX:
-            return self.StepMovsx(h, reader)
+            return self.StepUniBin(h, reader, "MOVSX", OP_MOVSX)
+        elif h.tp == TH_MOVZX:
+            return self.StepUniBin(h, reader, "MOVZX", OP_MOVZX)
         elif h.tp == TH_INC:
-            return self.StepInc(h, reader)
+            return self.StepUnary(h, reader, "INC", OP_INC)
         elif h.tp == TH_DEC:
-            return self.StepDec(h, reader)
+            return self.StepUnary(h, reader, "DEC", OP_DEC)
         elif h.tp == TH_NOT:
-            return self.StepNot(h, reader)
+            return self.StepUnary(h, reader, "NOT", OP_NOT)
         elif h.tp == TH_NEG:
-            return self.StepNeg(h, reader)
+            return self.StepUnary(h, reader, "NEG", OP_NEG)
+        elif h.tp == TH_SHL:
+            return self.StepUniBin(h, reader, "SHL", OP_SHL)
+        elif h.tp == TH_SHR:
+            return self.StepUniBin(h, reader, "SHR", OP_SHR)
+        elif h.tp == TH_RCL:
+            return self.StepUniBin(h, reader, "RCL", OP_RCL)
+        elif h.tp == TH_RCR:
+            return self.StepUniBin(h, reader, "RCR", OP_RCR)
+        elif h.tp == TH_ROL:
+            return self.StepUniBin(h, reader, "ROL", OP_ROL)
+        elif h.tp == TH_ROR:
+            return self.StepUniBin(h, reader, "ROR", OP_ROR)
         elif h.tp == TH_UNSHUFLE:
             return self.StepUnshuffle(h, reader)
         elif h.tp == WH_CALL:
             return self.StepCall(h, reader)
+        elif h.tp == TH_IMGBASE:
+            return self.StepImgBase(h, reader)
         elif h.tp == -1:
             self.StepOpcodeRegions(h, reader)
             return self.StepFlow(h, reader.Read2(h.flowReadOffset), False)
         return False
+
+    def StepOperand(self, h, opid, outop):
+        opi = h.operands[opid]
+        val = self.GetKeyData(opi.tkey)
+
+        for d in opi.decoders:
+            _, val = ComputeVal(d.mnem, d.sz, val, d.data)
+
+        if opi.tp == TH_OPR_IMM:
+            if opi.sz == 1:
+                val &= 0xFF
+            elif opi.sz == 2:
+                val &= 0xFFFF
+
+        if self.trAddr == 0x1141030c:
+            xlog(opid, hex(val), opi.tp)
+
+        outop.sz = opi.sz
+        if opi.tp == TH_OPR_REG:
+            outop.ID = ID_REG
+            outop.value = (self.ConvReg(val) << 4) | opi.sz
+        elif opi.tp == TH_OPR_IMM:
+            outop.ID = ID_VALx | opi.sz
+            outop.value = val
+        elif opi.tp == TH_OPR_MEM_REG:
+            outop.ID = ID_MEMx | opi.sz
+            outop.xbase = (self.ConvReg(val) << 4) | 3
+        elif opi.tp == TH_OPR_MEM_IMM:
+            outop.ID = ID_MEMx | opi.sz
+            outop.val2 = val
+
+        return val
+
+    def TxtWildOperator(self, op):
+        if op.ID in TIGER_OPTXT:
+            return TIGER_OPTXT[op.ID]
+        return WILD.TxtWildOperator(self, op)
+
+
+    def SimplifyDoubleUnshuffle(self, trace):
+        i = 0
+        while trace.Bounds(i, 1):
+            if trace.heap[i].instr.ID == THOP_UNSHUFFLE and \
+               trace.heap[i + 1].instr.ID == THOP_UNSHUFFLE:
+                trace.heap[i + 1].instr.ID = 0
+            i += 1
+        trace.Cleaner()
+
+    def SimplifyPushCallJmp(self, trace):
+        i = 0
+        while i < trace.count:
+            if trace.Bounds(i, 11) and \
+               trace.heap[i].instr.ID == OP_PUSH and \
+               trace.heap[i + 1].instr.ID == OP_PUSH and \
+               trace.heap[i + 2].instr.ID == OP_PUSHF and \
+               trace.heap[i + 3].instr.ID == OP_PUSH and \
+               trace.heap[i + 4].instr.ID == OP_PUSH and \
+               trace.heap[i + 5].instr.ID == OP_PUSH and \
+               trace.heap[i + 6].instr.ID == OP_PUSH and \
+               trace.heap[i + 7].instr.ID == OP_PUSH and \
+               trace.heap[i + 8].instr.ID == OP_PUSH and \
+               trace.heap[i + 9].instr.ID == OP_PUSH and \
+               trace.heap[i + 10].instr.ID == THOP_UNSHUFFLE:
+                if trace.heap[i + 11].instr.ID == OP_CALL:
+                    for j in range(11):
+                        trace.heap[i + j].instr.ID = 0
+                elif trace.Bounds(i, 12) and \
+                     trace.heap[i + 11].instr.ID == OP_NOP and \
+                     trace.heap[i + 12].instr.ID == OP_CALL:
+                    for j in range(12):
+                        trace.heap[i + j].instr.ID = 0
+            if trace.Bounds(i, 10) and \
+                trace.heap[i].instr.ID == OP_PUSH and \
+                trace.heap[i + 1].instr.ID == OP_PUSHF and \
+                trace.heap[i + 2].instr.ID == OP_PUSH and \
+                trace.heap[i + 3].instr.ID == OP_PUSH and \
+                trace.heap[i + 4].instr.ID == OP_PUSH and \
+                trace.heap[i + 5].instr.ID == OP_PUSH and \
+                trace.heap[i + 6].instr.ID == OP_PUSH and \
+                trace.heap[i + 7].instr.ID == OP_PUSH and \
+                trace.heap[i + 8].instr.ID == OP_PUSH and \
+                trace.heap[i + 9].instr.ID == THOP_UNSHUFFLE:
+                if trace.heap[i + 10].instr.ID in (OP_JMP, WOP_UNDEF) or \
+                   trace.heap[i + 10].instr.ID in range(OP_JA, OP_JCXZ):
+                    for j in range(10):
+                        trace.heap[i + j].instr.ID = 0
+                elif trace.Bounds(i, 11) and \
+                     trace.heap[i + 10].instr.ID == OP_NOP and \
+                    (trace.heap[i + 11].instr.ID in (OP_JMP, WOP_UNDEF) or \
+                     trace.heap[i + 11].instr.ID in range(OP_JA, OP_JCXZ)):
+                    for j in range(11):
+                        trace.heap[i + j].instr.ID = 0
+            i += 1
+        trace.Cleaner()
+
+    def SimplifyResetPop(self, trace):
+        i = 0
+        while i < trace.count:
+            if trace.Bounds(i, 11) and \
+                trace.heap[i].instr.ID == WOP_SSTACK and \
+                trace.heap[i + 1].instr.ID == WOP_RESET and \
+                trace.heap[i + 2].instr.ID == OP_POP and \
+                trace.heap[i + 3].instr.ID == OP_POP and \
+                trace.heap[i + 4].instr.ID == OP_POP and \
+                trace.heap[i + 5].instr.ID == OP_POP and \
+                trace.heap[i + 6].instr.ID == OP_POP and \
+                trace.heap[i + 7].instr.ID == OP_POP and \
+                trace.heap[i + 8].instr.ID == OP_POP and \
+                trace.heap[i + 9].instr.ID == OP_POP and \
+                trace.heap[i + 10].instr.ID == OP_POPF and \
+                trace.heap[i + 11].instr.ID == WOP_RSTACK:
+                for j in range(12):
+                    trace.heap[i + j].instr.ID = 0
+            i += 1
+        trace.Cleaner()
+
+    def SimplifyModifyStack(self, trace):
+        i = 0
+        while i < trace.count:
+            if trace.Bounds(i, 1) and \
+                trace.heap[i].instr.ID in (OP_ADD, OP_SUB) and \
+                trace.heap[i + 1].instr.ID == WOP_LSTACK and \
+                trace.heap[i].instr.operand[0].ID == ID_REG and \
+                trace.heap[i].instr.operand[0].value == 0x1043:
+
+                trace.heap[i + 1].instr.ID = 0
+                trace.heap[i].instr.operand[0].value = R_ESP
+
+            i += 1
+        trace.Cleaner()
+
+
+    def SimplifyComplexUniversal(self, trace):
+        i = 0
+        while i < trace.count:
+            if trace.Bounds(i, 4):
+                op0 = trace.heap[i].instr
+                op1 = trace.heap[i + 1].instr
+                op2 = trace.heap[i + 2].instr
+                op3 = trace.heap[i + 3].instr
+                op4 = trace.heap[i + 4].instr
+
+                if op0.ID == OP_MOV and \
+                   op1.ID == OP_SHL and \
+                   op2.ID == OP_ADD and \
+                   op3.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op2.operand[0].ID == ID_REG and \
+                   op3.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op2.operand[0].value == op0.operand[0].value and \
+                   op3.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].TID() == TID_VAL and \
+                   op2.operand[1].ID == ID_REG and \
+                   op3.operand[1].TID() == TID_VAL:
+                    if op4.operand[0].TID() == TID_MEM and op4.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = 0
+                        op4.operand[0].xbase = 0
+                        op4.operand[0].val2 = op3.operand[1].value
+                        op4.operand[0].value = 0
+                        op4.operand[0].SetB(1, op2.operand[1].Base())
+                        op4.operand[0].SetB(2, op0.operand[1].Base())
+                        op4.operand[0].SetB(3, op1.operand[1].value & 0xF)
+                    elif op4.operand[1].TID() == TID_MEM and op4.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = 0
+                        op4.operand[1].xbase = 0
+                        op4.operand[1].val2 = op3.operand[1].value
+                        op4.operand[1].value = 0
+                        op4.operand[1].SetB(1, op2.operand[1].Base())
+                        op4.operand[1].SetB(2, op0.operand[1].Base())
+                        op4.operand[1].SetB(3, op1.operand[1].value & 0xF)
+                    elif op4.ID == OP_MOV and \
+                         op4.operand[0].ID == ID_REG and \
+                         op4.operand[1].ID == ID_REG and \
+                         op4.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = 0
+                        op4.ID = OP_LEA
+                        op4.operand[1].ID = ID_MEM32
+                        op4.operand[1].xbase = 0
+                        op4.operand[1].val2 = op3.operand[1].value
+                        op4.operand[1].value = 0
+                        op4.operand[1].SetB(1, op2.operand[1].Base())
+                        op4.operand[1].SetB(2, op0.operand[1].Base())
+                        op4.operand[1].SetB(3, op1.operand[1].value & 0xF)
+
+            if trace.Bounds(i, 3):
+                op0 = trace.heap[i].instr
+                op1 = trace.heap[i + 1].instr
+                op2 = trace.heap[i + 2].instr
+                op3 = trace.heap[i + 3].instr
+
+                if op0.ID == OP_MOV and \
+                   op1.ID == OP_SHL and \
+                   op2.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op2.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op2.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].TID() == TID_VAL and \
+                   op2.operand[1].ID == ID_REG:
+                    if op3.operand[0].TID() == TID_MEM and op3.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[0].xbase = 0
+                        op3.operand[0].val2 = 0
+                        op3.operand[0].value = 0
+                        op3.operand[0].SetB(1, op2.operand[1].Base())
+                        op3.operand[0].SetB(2, op0.operand[1].Base())
+                        op3.operand[0].SetB(3, op1.operand[1].value & 0xF)
+                    elif op3.operand[1].TID() == TID_MEM and op3.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = 0
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(1, op2.operand[1].Base())
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, op1.operand[1].value & 0xF)
+                    elif op3.ID == OP_MOV and \
+                         op3.operand[0].ID == ID_REG and \
+                         op3.operand[1].ID == ID_REG and \
+                         op3.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = OP_LEA
+                        op3.operand[1].ID = ID_MEM32
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = 0
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(1, op2.operand[1].Base())
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, op1.operand[1].value & 0xF)
+
+                if op0.ID == OP_MOV and \
+                   op1.ID == OP_ADD and \
+                   op2.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op2.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op2.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].ID == ID_REG and \
+                   op2.operand[1].TID() == TID_VAL:
+                    if op3.operand[0].TID() == TID_MEM and op3.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[0].xbase = 0
+                        op3.operand[0].val2 = op2.operand[1].value
+                        op3.operand[0].value = 0
+                        op3.operand[0].SetB(1, op1.operand[1].Base())
+                        op3.operand[0].SetB(2, op0.operand[1].Base())
+                        op3.operand[0].SetB(3, 0)
+                    elif op3.operand[1].TID() == TID_MEM and op3.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = op2.operand[1].value
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(1, op1.operand[1].Base())
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, 0)
+                    elif op3.ID == OP_MOV and \
+                         op3.operand[0].ID == ID_REG and \
+                         op3.operand[1].ID == ID_REG and \
+                         op3.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = OP_LEA
+                        op3.operand[1].ID = ID_MEM32
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = op2.operand[1].value
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(1, op1.operand[1].Base())
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, 0)
+
+            if trace.Bounds(i, 2):
+                op0 = trace.heap[i].instr
+                op1 = trace.heap[i + 1].instr
+                op2 = trace.heap[i + 2].instr
+
+                if op0.ID == OP_MOV and \
+                   op1.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].TID() == TID_VAL:
+                    if op2.operand[0].TID() == TID_MEM and op2.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.operand[0].xbase = 0
+                        op2.operand[0].value = 0
+                        op2.operand[0].SetB(1, op0.operand[1].Base())
+                        op2.operand[0].val2 = op1.operand[1].value
+                    elif op2.operand[1].TID() == TID_MEM and op2.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.operand[1].xbase = 0
+                        op2.operand[1].value = 0
+                        op2.operand[1].val2 = op1.operand[1].value
+                        op2.operand[1].SetB(1, op0.operand[1].Base())
+                    elif op2.ID == OP_MOV and \
+                         op2.operand[0].ID == ID_REG and \
+                         op2.operand[1].ID == ID_REG and \
+                         op2.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = OP_LEA
+                        op2.operand[1].ID = ID_MEM32
+                        op2.operand[1].xbase = 0
+                        op2.operand[1].val2 = op1.operand[1].value
+                        op2.operand[1].value = 0
+                        op2.operand[1].SetB(1, op0.operand[1].Base())
+
+            if trace.Bounds(i, 1):
+                op0 = trace.heap[i].instr
+                op1 = trace.heap[i + 1].instr
+
+                if op0.ID == OP_MOV and \
+                   op0.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op0.operand[1].TID() in (TID_REG, TID_VAL):
+                    if op1.operand[0].TID() == TID_MEM and op1.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.operand[0].xbase = 0
+                        op1.operand[0].val2 = 0
+                        op1.operand[0].value = 0
+                        if op0.operand[1].ID == ID_REG:
+                            op1.operand[0].SetB(1, op0.operand[1].Base())
+                        else:
+                            op1.operand[0].val2 = op0.operand[1].value
+                    elif op1.operand[1].TID() == TID_MEM and op1.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.operand[1].xbase = 0
+                        op1.operand[1].val2 = 0
+                        op1.operand[1].value = 0
+                        if op0.operand[1].ID == ID_REG:
+                            op1.operand[1].SetB(1, op0.operand[1].Base())
+                        else:
+                            op1.operand[1].val2 = op0.operand[1].value
+
+                    elif op1.ID in (OP_CALL, OP_JMP, OP_PUSH) and \
+                        op1.operand[0].ID == ID_REG and \
+                        op1.operand[0].value == op0.operand[0].value:
+
+                        op0.ID = 0
+                        op1.operand[0].xbase = 0
+                        op1.operand[0].ID = op0.operand[1].ID
+                        op1.operand[0].value = op0.operand[1].value
+
+                    elif op1.ID == OP_MOV and \
+                         op1.operand[0].ID == ID_REG and \
+                         op1.operand[1].ID == ID_REG and \
+                         op1.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = OP_LEA
+                        op1.operand[1].xbase = 0
+                        op1.operand[1].ID = ID_MEM32
+                        op1.operand[1].val2 = 0
+                        op1.operand[1].value = 0
+                        if op0.operand[1].ID == ID_REG:
+                            op1.operand[1].SetB(1, op0.operand[1].Base())
+                        else:
+                            op1.operand[1].val2 = op0.operand[1].value
+
+            i += 1
+        trace.Cleaner()
+
+    def SimplifyComplexAddress(self, trace):
+        i = 0
+        while i < trace.count:
+            if not trace.Bounds(i, 1):
+                break
+
+            op0 = trace.heap[i].instr
+            op1 = trace.heap[i + 1].instr
+
+            if op0.ID in (OP_MOV, OP_ADD) and \
+               op1.ID == OP_ADD and \
+               op0.operand[0].ID == ID_REG and \
+               op0.operand[0].value & 0x2000 and \
+               op0.operand[1].TID() == TID_VAL and \
+               op1.operand[0].ID == ID_REG and \
+               op1.operand[1].TID() == TID_VAL and \
+               op1.operand[0].value == op0.operand[0].value:
+
+                op1.ID = 0
+                op0.operand[1].value = UINT(op0.operand[1].value + op1.operand[1].value)
+
+            i += 1
+        trace.Cleaner()
+
+    def DeleteSpecial(self, trace):
+        i = 0
+        while i < trace.count:
+            op = trace.heap[i].instr
+            if op.ID in (WOP_RESET, THOP_UNSHUFFLE, WOP_LSTACK):
+                op.ID = 0
+            elif op.ID == OP_MOV and \
+                op.operand[0].ID == ID_REG and \
+                op.operand[1].ID == ID_REG and \
+                op.operand[0].value == op.operand[1].value:
+                op.ID = 0
+            i += 1
+        trace.Cleaner()
+
+    def Simplify(self, trace):
+        counter = 0
+        while True:
+            cnt = trace.count
+            self.SimplifyDoubleUnshuffle(trace)
+            self.SimplifyPushCallJmp(trace)
+            self.SimplifyResetPop(trace)
+            self.SimplifyModifyStack(trace)
+            self.SimplifyComplexAddress(trace)
+            self.SimplifyComplexUniversal(trace)
+
+            self.DeleteSpecial(trace)
+
+            if cnt == trace.count:
+                counter += 1
+                if counter >= 2:
+                    break
+            else:
+                counter = 0

@@ -6,6 +6,9 @@ class OperandInfo:
 	value = 0
 	val2 = 0
 
+	sz = 0
+	xbase = 0
+
 	def Base(self):
 		if self.TID() == TID_REG:
 			return self.GetB(0)
