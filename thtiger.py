@@ -382,11 +382,11 @@ class TIGER(WILD):
 
                         h.addr = CMDSimpler.heap[j].addr
                         h.operands[0].tp = op0tp
-                        h.operands[0].sz = jop.operand[0].Size()
+                        h.operands[0].sz = jop.operand[1].Size()
                         h.operands[0].idx = i
                         h.operands[0].tkey = TKEY_OPR0
                         h.operands[1].tp = op1tp
-                        h.operands[1].sz = jop.operand[1].Size()
+                        h.operands[1].sz = CMDSimpler.heap[jj].instr.operand[1].Size()
                         h.operands[1].wrksz = CMDSimpler.heap[op1i].instr.operand[1].Size()
                         h.operands[1].idx = op1i
                         h.operands[1].tkey = t1key
@@ -1328,8 +1328,10 @@ class TIGER(WILD):
         elif h.tp == TH_POP:
             # HACK
             if self.traced.count >= 2 and \
-               self.traced.heap[self.traced.count - 1].instr.ID == WOP_RESET and \
-               self.traced.heap[self.traced.count - 2].instr.ID == WOP_SSTACK and \
+              ((self.traced.heap[self.traced.count - 1].instr.ID == WOP_RESET and \
+               self.traced.heap[self.traced.count - 2].instr.ID == WOP_SSTACK) or \
+               (self.traced.heap[self.traced.count - 2].instr.ID == WOP_RESET and \
+                self.traced.heap[self.traced.count - 1].instr.ID == WOP_SSTACK)) and \
                self.trStkReg < 0:
                 self.trStkReg = 7
                 xlog("HACK! Restore POP REGS")
@@ -1503,6 +1505,21 @@ class TIGER(WILD):
                 trace.heap[i + 11].instr.ID == WOP_RSTACK:
                 for j in range(12):
                     trace.heap[i + j].instr.ID = 0
+            elif trace.Bounds(i, 11) and \
+                trace.heap[i].instr.ID == WOP_RESET and \
+                trace.heap[i + 1].instr.ID == WOP_SSTACK and \
+                trace.heap[i + 2].instr.ID == OP_POP and \
+                trace.heap[i + 3].instr.ID == OP_POP and \
+                trace.heap[i + 4].instr.ID == OP_POP and \
+                trace.heap[i + 5].instr.ID == OP_POP and \
+                trace.heap[i + 6].instr.ID == OP_POP and \
+                trace.heap[i + 7].instr.ID == OP_POP and \
+                trace.heap[i + 8].instr.ID == OP_POP and \
+                trace.heap[i + 9].instr.ID == OP_POP and \
+                trace.heap[i + 10].instr.ID == OP_POPF and \
+                trace.heap[i + 11].instr.ID == WOP_RSTACK:
+                for j in range(12):
+                    trace.heap[i + j].instr.ID = 0
             i += 1
         trace.Cleaner()
 
@@ -1642,6 +1659,51 @@ class TIGER(WILD):
                         op3.operand[1].SetB(3, op1.operand[1].value & 0xF)
 
                 if op0.ID == OP_MOV and \
+                   op1.ID == OP_SHL and \
+                   op2.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op2.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op2.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].TID() == TID_VAL and \
+                   op2.operand[1].TID() == TID_VAL:
+                    if op3.operand[0].TID() == TID_MEM and op3.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[0].xbase = 0
+                        op3.operand[0].val2 = op2.operand[1].value
+                        op3.operand[0].value = 0
+                        op3.operand[0].SetB(2, op0.operand[1].Base())
+                        op3.operand[0].SetB(3, op1.operand[1].value & 0xF)
+                    elif op3.operand[1].TID() == TID_MEM and op3.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = op2.operand[1].value
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, op1.operand[1].value & 0xF)
+                    elif op3.ID == OP_MOV and \
+                         op3.operand[0].ID == ID_REG and \
+                         op3.operand[1].ID == ID_REG and \
+                         op3.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = 0
+                        op3.ID = OP_LEA
+                        op3.operand[1].ID = ID_MEM32
+                        op3.operand[1].xbase = 0
+                        op3.operand[1].val2 = op2.operand[1].value
+                        op3.operand[1].value = 0
+                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(3, op1.operand[1].value & 0xF)
+
+                if op0.ID == OP_MOV and \
                    op1.ID == OP_ADD and \
                    op2.ID == OP_ADD and \
                    op0.operand[0].ID == ID_REG and \
@@ -1660,8 +1722,8 @@ class TIGER(WILD):
                         op3.operand[0].xbase = 0
                         op3.operand[0].val2 = op2.operand[1].value
                         op3.operand[0].value = 0
-                        op3.operand[0].SetB(1, op1.operand[1].Base())
-                        op3.operand[0].SetB(2, op0.operand[1].Base())
+                        op3.operand[0].SetB(1, op0.operand[1].Base())
+                        op3.operand[0].SetB(2, op1.operand[1].Base())
                         op3.operand[0].SetB(3, 0)
                     elif op3.operand[1].TID() == TID_MEM and op3.operand[1].xbase == op0.operand[0].value:
                         op0.ID = 0
@@ -1670,8 +1732,8 @@ class TIGER(WILD):
                         op3.operand[1].xbase = 0
                         op3.operand[1].val2 = op2.operand[1].value
                         op3.operand[1].value = 0
-                        op3.operand[1].SetB(1, op1.operand[1].Base())
-                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(1, op0.operand[1].Base())
+                        op3.operand[1].SetB(2, op1.operand[1].Base())
                         op3.operand[1].SetB(3, 0)
                     elif op3.ID == OP_MOV and \
                          op3.operand[0].ID == ID_REG and \
@@ -1685,8 +1747,8 @@ class TIGER(WILD):
                         op3.operand[1].xbase = 0
                         op3.operand[1].val2 = op2.operand[1].value
                         op3.operand[1].value = 0
-                        op3.operand[1].SetB(1, op1.operand[1].Base())
-                        op3.operand[1].SetB(2, op0.operand[1].Base())
+                        op3.operand[1].SetB(1, op0.operand[1].Base())
+                        op3.operand[1].SetB(2, op1.operand[1].Base())
                         op3.operand[1].SetB(3, 0)
 
             if trace.Bounds(i, 2):
@@ -1728,6 +1790,44 @@ class TIGER(WILD):
                         op2.operand[1].val2 = op1.operand[1].value
                         op2.operand[1].value = 0
                         op2.operand[1].SetB(1, op0.operand[1].Base())
+
+                if op0.ID == OP_MOV and \
+                   op1.ID == OP_ADD and \
+                   op0.operand[0].ID == ID_REG and \
+                   op1.operand[0].ID == ID_REG and \
+                   op0.operand[0].value & 0x2000 and \
+                   op1.operand[0].value == op0.operand[0].value and \
+                   op0.operand[1].ID == ID_REG and \
+                   op1.operand[1].ID == ID_REG:
+                    if op2.operand[0].TID() == TID_MEM and op2.operand[0].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.operand[0].xbase = 0
+                        op2.operand[0].value = 0
+                        op2.operand[0].SetB(1, op0.operand[1].Base())
+                        op2.operand[0].SetB(2, op1.operand[1].Base())
+                        op2.operand[0].val2 = 0
+                    elif op2.operand[1].TID() == TID_MEM and op2.operand[1].xbase == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.operand[1].xbase = 0
+                        op2.operand[1].value = 0
+                        op2.operand[1].val2 = 0
+                        op2.operand[1].SetB(1, op0.operand[1].Base())
+                        op2.operand[1].SetB(2, op1.operand[1].Base())
+                    elif op2.ID == OP_MOV and \
+                         op2.operand[0].ID == ID_REG and \
+                         op2.operand[1].ID == ID_REG and \
+                         op2.operand[1].value == op0.operand[0].value:
+                        op0.ID = 0
+                        op1.ID = 0
+                        op2.ID = OP_LEA
+                        op2.operand[1].ID = ID_MEM32
+                        op2.operand[1].xbase = 0
+                        op2.operand[1].val2 = 0
+                        op2.operand[1].value = 0
+                        op2.operand[1].SetB(1, op0.operand[1].Base())
+                        op2.operand[1].SetB(2, op1.operand[1].Base())
 
             if trace.Bounds(i, 1):
                 op0 = trace.heap[i].instr

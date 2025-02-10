@@ -2992,7 +2992,7 @@ class WILD(VM):
         elif op.TID() == TID_MEM:
             return (op.xbase >> 4) & 0xFF
 
-    def TxtWopOperand(self, opr):
+    def TxtWopOperand(self, opr, islea = False):
         if opr.TID() == TID_REG:
             if opr.value & 0xFFF0 == 0x1040:
                 return "VM_ESP"
@@ -3009,12 +3009,15 @@ class WILD(VM):
         elif opr.TID() == TID_MEM:
             if opr.val2 == 0 and opr.xbase != 0:
                 t = ""
-                if opr.Size() == 1:
-                    t = "BYTE PTR["
-                elif opr.Size() == 2:
-                    t = "WORD PTR["
-                elif opr.Size() == 3:
-                    t = "DWORD PTR["
+                if islea:
+                    t = "["
+                else:
+                    if opr.Size() == 1:
+                        t = "byte ptr["
+                    elif opr.Size() == 2:
+                        t = "word ptr["
+                    elif opr.Size() == 3:
+                        t = "dword ptr["
 
                 if opr.xbase & 0xFFF0 == 0x1040:
                     return t + "VM_ESP]"
@@ -3025,7 +3028,9 @@ class WILD(VM):
             else:
 
                 sz = opr.ID & 0xF
-                t = PTRNAME[sz]
+                t = ""
+                if not islea:
+                    t = PTRNAME[sz]
                 t += "["
 
                 if opr.GetB(1) != 0:
@@ -3049,11 +3054,9 @@ class WILD(VM):
                         t += REG32NAME[rid]
                     else:
                         t += "REG?"
-                if opr.GetB(3) != 0:
-                    if opr.GetB(2) == 0:
-                        t += "ERROR"
-                    else:
-                        t += MULNAME[opr.GetB(3)]
+
+                    t += MULNAME[opr.GetB(3)]
+
 
                 if opr.val2 != 0 or (opr.GetB(1) == 0 and opr.GetB(2) == 0):
                     if opr.GetB(1) != 0 or opr.GetB(2) != 0:
@@ -3078,7 +3081,7 @@ class WILD(VM):
             t += " " + self.TxtWopOperand(op.operand[0])
 
         if op.operand[1].ID != 0:
-            t += ", " + self.TxtWopOperand(op.operand[1])
+            t += ", " + self.TxtWopOperand(op.operand[1], op.ID == OP_LEA)
         return t
 
     def ConvReg(self, offset):

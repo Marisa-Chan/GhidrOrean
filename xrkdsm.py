@@ -470,7 +470,7 @@ def XrkDecode(bts):
 REG8NAME = ("AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH")
 REG16NAME = ("AX", "CX", "DX", "BX", "SP", "BP", "SI", "DI")
 REG32NAME = ("EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI")
-PTRNAME = ("UNK PTR", "BYTE PTR ", "WORD PTR ", "DWORD PTR ",\
+PTRNAME = ("UNK PTR", "byte ptr ", "word ptr ", "dword ptr ",\
 		   "FWORD PTR ", "QWORD PTR ", "TBYTE PTR ", "(14-BYTE) PTR ",\
 		   "UNK PTR", "(28-BYTE) PTR ", "(98-BYTE) PTR ", "(108-BYTE) PTR ",\
 		   "UNK PTR", "UNK PTR", "UNK PTR", "UNK PTR")
