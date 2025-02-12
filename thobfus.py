@@ -51,7 +51,7 @@ def IsOpClass(opid, mv, idnn, asx):
 	return False
 
 def FUN_10060650(rk):
-	if (rk.ID == OP_ADD or rk.ID == OP_SUB) and rk.operand[1].TID() == 2 and\
+	if (rk.ID == OP_ADD or rk.ID == OP_SUB) and rk.operand[1].TID() == TID_VAL and\
 	   (UINT(rk.operand[1].value) == 0xffffffff or rk.operand[1].value == 1):
 		return True
 	return False
@@ -173,6 +173,7 @@ class Defus:
 	def Add(self, instr, addr):
 		if self.count >= self.maxlen:
 			return False
+
 		self.heap[self.count] = CmdEntry(instr, addr)
 		self.count += 1
 		return True
@@ -209,8 +210,8 @@ class Defus:
 		op1 = self.heap[i + 1].instr
 
 		if op0.ID == OP_MOV and op1.ID != OP_MOV and\
-		   op0.operand[0].TID() in (1, 3) and\
-		   op0.operand[1].TID() == 2 and\
+		   op0.operand[0].TID() in (TID_REG, TID_MEM) and\
+		   op0.operand[1].TID() == TID_VAL and\
 		   op1.operand[0].value == op0.operand[0].value and\
 		   op1.operand[0].val2 == op0.operand[0].val2:
 
@@ -219,7 +220,7 @@ class Defus:
 				ojp = self.heap[i + 1 + j].instr
 				if IsOpClass(ojp.ID, 0, 1, 1) and\
 				   ojp.operand[0].ID == op0.operand[0].ID and\
-				   ojp.operand[1].TID() in (0, 2) and\
+				   ojp.operand[1].TID() in (0, TID_VAL) and\
 				   ojp.operand[0].value == op0.operand[0].value and\
 				   ojp.operand[0].val2 == op0.operand[0].val2 :
 					j += 1
@@ -235,7 +236,7 @@ class Defus:
 				val = op0.operand[1].value
 				for k in range(j):
 					okp = self.heap[i + 1 + k].instr
-					if op0.operand[0].TID() == 1:
+					if op0.operand[0].TID() == TID_REG:
 						_,val = ComputeVal(okp.ID, op0.operand[0].GetB(0) & 0xf, val, okp.operand[1].value)
 					else:
 						_,val = ComputeVal(okp.ID, op0.operand[0].ID & 0xf, val, okp.operand[1].value)
@@ -305,17 +306,17 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if (op0.ID == OP_SUB and op1.ID == OP_MOV) and\
-		   op0.operand[0].ID == 0x10 and (op0.operand[1].ID & 0x20) and\
-		   op1.operand[0].ID in (0x32, 0x33) and\
-		   op1.operand[1].ID == 0x10 and op0.operand[0].GetB(0) == 0x43 and\
+		   op0.operand[0].ID == ID_REG and op0.operand[1].TID() == TID_VAL and\
+		   op1.operand[0].ID in (ID_MEM16, ID_MEM32) and\
+		   op1.operand[1].ID == ID_REG and op0.operand[0].GetB(0) == R_ESP and\
 		   op0.operand[1].value in (2, 4) and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
 			#xlog("CheckRound1_1")
 		   
-			if op1.operand[1].GetB(0) in (0x42, 0x43):
+			if op1.operand[1].GetB(0) in (R_SP, R_ESP):
 				if op2.ID == OP_ADD and\
-				   op2.operand[0].TID() == 3 and op2.operand[1].TID() == 2 and\
+				   op2.operand[0].TID() == TID_MEM and op2.operand[1].TID() == TID_VAL and\
 				   (op2.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 				   op2.operand[0].val2 == 0 and op2.operand[1].value in (2,4):
 					op0.ID = OP_PUSH
@@ -343,16 +344,16 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if (op0.ID == OP_PUSH and op1.ID == OP_MOV) and\
-		   op0.operand[0].ID == 0x10 and\
-		   (op1.operand[0].ID in (0x32, 0x33)) and\
-		   op1.operand[1].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and\
+		   (op1.operand[0].ID in (ID_MEM16, ID_MEM32)) and\
+		   op1.operand[1].ID == ID_REG and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
 			#xlog("CheckRound1_2")
 		   
-			if UB(op1.operand[1].value) in (0x42, 0x43):
+			if UB(op1.operand[1].value) in (R_SP, R_ESP):
 				if op2.ID == OP_ADD and\
-					op2.operand[0].TID() == 3 and op2.operand[1].TID() == 2 and\
+					op2.operand[0].TID() == TID_MEM and op2.operand[1].TID() == TID_VAL and\
 					(op2.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 					op2.operand[0].val2 == 0 and (op2.operand[1].value in (2,4)):
 					op0.ID = OP_PUSH
@@ -376,16 +377,16 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
-		   op0.operand[0].TID() == 2 and\
-		   op1.operand[0].ID in (0x32, 0x33) and\
-		   op1.operand[1].ID == 0x10 and\
+		   op0.operand[0].TID() == TID_VAL and\
+		   op1.operand[0].ID in (ID_MEM16, ID_MEM32) and\
+		   op1.operand[1].ID == ID_REG and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and op1.operand[0].val2 == 0:
 		   
 			#xlog("CheckRound1_3")
 		   
 			if op1.operand[1].GetB(0) in (0x42, 0x43):
 				if op2.ID == OP_ADD and\
-					op2.operand[0].TID() == 3 and op2.operand[1].TID() == 2 and\
+					op2.operand[0].TID() == TID_MEM and op2.operand[1].TID() == TID_VAL and\
 					(op2.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 					op2.operand[0].val2 == 0 and op2.operand[1].value in (2,4):
 					op0.ID = OP_PUSH
@@ -413,9 +414,9 @@ class Defus:
 		op1 = self.heap[i+1].instr
 		
 		if op0.ID == OP_MOV and op1.ID == OP_ADD and\
-		   op0.operand[0].ID == 0x10 and\
-		   (op0.operand[1].ID in (0x32, 0x33)) and\
-		   op1.operand[0].ID == 0x10 and op1.operand[1].TID() == 2 and\
+		   op0.operand[0].ID == ID_REG and\
+		   (op0.operand[1].ID in (ID_MEM16, ID_MEM32)) and\
+		   op1.operand[0].ID == ID_REG and op1.operand[1].TID() == TID_VAL and\
 		   (op0.operand[0].GetB(0) >> 4) != 4 and\
 		   (op0.operand[1].value & 0xFFFFFF00) == 0x00004300 and op0.operand[1].val2 == 0 and\
 		   op1.operand[0].GetB(0) == 0x43 and (op1.operand[1].value in (2, 4)):
@@ -429,8 +430,8 @@ class Defus:
 			self.Cleaner(i, 10)
 		   
 		if op0.ID == OP_MOV and\
-		   op0.operand[0].ID == 0x10 and\
-		   op0.operand[1].ID in (0x32,0x33) and\
+		   op0.operand[0].ID == ID_REG and\
+		   op0.operand[1].ID in (ID_MEM16, ID_MEM32) and\
 		   (UB(op0.operand[0].value) >> 4) == 4 and\
 		   (op0.operand[1].value & 0xFFFFFF00) == 0x00004300 and op0.operand[1].val2 == 0:
 			#xlog("CheckRound2_1 2")
@@ -452,15 +453,15 @@ class Defus:
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and op2.ID == OP_ADD and\
 			op3.ID in (OP_ADD, OP_SUB) and\
 			op4.ID == OP_XCHG and op5.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and\
-		   op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].ID == 0x10 and\
-		   op2.operand[0].ID == 0x10 and\
-		   op2.operand[1].TID() == 2 and\
-		   op3.operand[0].ID == 0x10 and\
-		   op3.operand[1].TID() == 2 and\
-		   ((op4.operand[0].ID == 0x33 and op4.operand[1].ID == 0x10) or (op4.operand[1].ID == 0x33 and op4.operand[0].ID == 0x10)) and\
-		   op5.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and\
+		   op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].ID == ID_REG and\
+		   op2.operand[0].ID == ID_REG and\
+		   op2.operand[1].TID() == TID_VAL and\
+		   op3.operand[0].ID == ID_REG and\
+		   op3.operand[1].TID() == TID_VAL and\
+		   ((op4.operand[0].ID == ID_MEM32 and op4.operand[1].ID == ID_REG) or (op4.operand[1].ID == ID_MEM32 and op4.operand[0].ID == ID_REG)) and\
+		   op5.operand[0].ID == ID_REG and\
 		   op0.operand[0].GetB(0) != 0x43 and\
 		   op1.operand[0].GetB(0) == op0.operand[0].GetB(0) and\
 		   op1.operand[1].GetB(0) == 0x43 and\
@@ -524,10 +525,10 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and op2.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and\
-		   op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].ID == 0x33 and\
-		   op2.operand[0].ID == 0x33 and\
+		   op0.operand[0].ID == ID_REG and\
+		   op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].ID == ID_MEM32 and\
+		   op2.operand[0].ID == ID_MEM32 and\
 		   op0.operand[0].GetB(0) != 0x43 and\
 		   op0.operand[0].GetB(0) == op1.operand[0].GetB(0) and\
 		   (op1.operand[1].value & 0xFFFFFF00) == 0x00004300 and\
@@ -553,11 +554,11 @@ class Defus:
 		op4 = self.heap[i+4].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and op2.ID == OP_MOV and op3.ID == OP_MOV and op4.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and op3.operand[1].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and op3.operand[1].ID == ID_REG and\
 		   op1.operand[0].ID == op3.operand[1].ID and\
 		   op1.operand[1].ID == op2.operand[0].ID and\
 		   op2.operand[1].ID == op3.operand[0].ID and\
-		   op4.operand[0].ID == 0x10:
+		   op4.operand[0].ID == ID_REG:
 		   
 			if FUN_10065850( op0.operand[0].GetB(0), op1.operand[0].GetB(0) ) and \
 				op1.operand[0].GetB(0) == op3.operand[1].GetB(0) and\
@@ -577,14 +578,14 @@ class Defus:
 				op0.operand[1].value = op2.operand[0].value
 				op0.operand[1].val2 = op2.operand[0].val2
 			
-				if op0.operand[0].TID() == 3 and\
+				if op0.operand[0].TID() == TID_MEM and\
 					op0.operand[0].GetB(1) == 0x43:
 					if (op4.operand[0].value & 0xF) != 3:
 						op0.operand[0].val2 = op0.operand[0].val2 - 2
 					else:
 						op0.operand[0].val2 = op0.operand[0].val2 - 4
 			
-				if op0.operand[1].TID() == 3 and\
+				if op0.operand[1].TID() == TID_MEM and\
 					op0.operand[1].GetB(1) == 0x43:
 					if (op4.operand[0].value & 0xF) != 3:
 						op0.operand[1].val2 = op0.operand[1].val2 + 2
@@ -607,10 +608,10 @@ class Defus:
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and op2.ID == OP_MOV and\
 		   IsOpClass(op3.ID, 1, 0, 1) and\
-		   op4.ID == OP_POP and op0.operand[0].ID == 0x10 and\
-		   op1.operand[0].ID == 0x10 and op1.operand[1].TID() == 2 and\
-		   op2.operand[1].TID() == 2 and op3.operand[1].ID == 0x10 and\
-		   op4.operand[0].ID == 0x10 and\
+		   op4.ID == OP_POP and op0.operand[0].ID == ID_REG and\
+		   op1.operand[0].ID == ID_REG and op1.operand[1].TID() == TID_VAL and\
+		   op2.operand[1].TID() == TID_VAL and op3.operand[1].ID == ID_REG and\
+		   op4.operand[0].ID == ID_REG and\
 		   FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)) and\
 		   op2.operand[0].value == op3.operand[0].value and\
 		   op2.operand[0].val2 == op3.operand[0].val2 and\
@@ -618,9 +619,9 @@ class Defus:
 		   op3.operand[1].val2 == op1.operand[0].val2 and\
 		   op4.operand[0].GetB(0) == op0.operand[0].GetB(0):
 		   
-			if op3.operand[0].TID() == 1:
+			if op3.operand[0].TID() == TID_REG:
 				s,newval = ComputeVal(op3.ID, op3.operand[0].value & 0xF, op2.operand[1].value, op1.operand[1].value)
-			elif op3.operand[0].TID() == 3:
+			elif op3.operand[0].TID() == TID_MEM:
 				if op3.operand[0].GetB(1) == 0x43:
 					if (op0.operand[0].value & 0xf) != 3:
 						op3.operand[0].val2 = op3.operand[0].val2 - 2
@@ -657,12 +658,12 @@ class Defus:
 		   IsOpClass(op3.ID, 1, 0, 1) and\
 		   IsOpClass(op4.ID, 1, 0, 1) and\
 		   op5.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		  op1.operand[1].TID() == 2 and\
-		  op2.operand[0].ID == 0x10 and op2.operand[1].TID() == 2 and\
-		  op3.operand[0].ID == 0x10 and op3.operand[1].ID == 0x10 and\
-		  op4.operand[0].ID == 0x10 and op4.operand[1].TID() == 2 and\
-		  op5.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		  op1.operand[1].TID() == TID_VAL and\
+		  op2.operand[0].ID == ID_REG and op2.operand[1].TID() == TID_VAL and\
+		  op3.operand[0].ID == ID_REG and op3.operand[1].ID == ID_REG and\
+		  op4.operand[0].ID == ID_REG and op4.operand[1].TID() == TID_VAL and\
+		  op5.operand[0].ID == ID_REG and\
 		  FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)) and\
 		  op2.operand[0].GetB(0) == op3.operand[0].GetB(0) and\
 		  op3.operand[0].GetB(0) != op1.operand[0].GetB(0) and\
@@ -698,13 +699,13 @@ class Defus:
 		op1 = self.heap[i+1].instr
 				
 		if op0.ID == OP_PUSH and op1.ID == OP_POP and (\
-		  (op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x33 and (op0.operand[0].value & 0xf) == 3) or\
-		  (op0.operand[0].ID == 0x33 and op1.operand[0].ID == 0x10 and (op1.operand[0].value & 0xf) == 3) or\
-		  (op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x32 and (op0.operand[0].value & 0xf) == 2) or\
-		  (op0.operand[0].ID == 0x32 and op1.operand[0].ID == 0x10 and (op1.operand[0].value & 0xf) == 2) or\	
-		  (op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10) or\
-		  (op0.operand[0].ID == 0x23 and op1.operand[0].ID == 0x10) or\
-		  (op0.operand[0].ID == 0x22 and op1.operand[0].ID == 0x10) ):
+		  (op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_MEM32 and (op0.operand[0].value & 0xf) == 3) or\
+		  (op0.operand[0].ID == ID_MEM32 and op1.operand[0].ID == ID_REG and (op1.operand[0].value & 0xf) == 3) or\
+		  (op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_MEM16 and (op0.operand[0].value & 0xf) == 2) or\
+		  (op0.operand[0].ID == ID_MEM16 and op1.operand[0].ID == ID_REG and (op1.operand[0].value & 0xf) == 2) or\	
+		  (op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG) or\
+		  (op0.operand[0].ID == ID_VAL32 and op1.operand[0].ID == ID_REG) or\
+		  (op0.operand[0].ID == ID_VAL16 and op1.operand[0].ID == ID_REG) ):
 		  
 			#xlog("CheckPushPop1")
 			op0.ID = OP_MOV
@@ -728,12 +729,12 @@ class Defus:
 		     ( (op1.ID == OP_SUB and op3.ID == OP_ADD) or\
                (op1.ID == OP_ADD and op3.ID == OP_SUB) or\
 			   (op1.ID == OP_XOR and op3.ID == OP_XOR) ) and\
-		   (op0.operand[0].ID == 0x10 or op0.operand[0].TID() == 3) and\
-		   op1.operand[0].TID() == 3 and\
-		   op1.operand[1].TID() == 2 and\
-           (op2.operand[0].ID == 0x10 or op2.operand[0].TID() == 3) and\
-		   (op3.operand[0].ID == 0x10 or op3.operand[0].TID() == 3) and \
-		   op3.operand[1].TID() == 2 and\
+		   (op0.operand[0].ID == ID_REG or op0.operand[0].TID() == TID_MEM) and\
+		   op1.operand[0].TID() == TID_MEM and\
+		   op1.operand[1].TID() == TID_VAL and\
+           (op2.operand[0].ID == ID_REG or op2.operand[0].TID() == TID_MEM) and\
+		   (op3.operand[0].ID == ID_REG or op3.operand[0].TID() == TID_MEM) and \
+		   op3.operand[1].TID() == TID_VAL and\
 		   op3.operand[0].ID == op2.operand[0].ID and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 		   op1.operand[0].val2 == 0 and\
@@ -762,9 +763,9 @@ class Defus:
 		
 		if ((op0.ID == OP_ADD and op2.ID == OP_SUB) or (op0.ID == OP_SUB and op2.ID == OP_ADD)) and\
 		   op1.ID in (OP_ADD, OP_SUB) and\
-		   op0.operand[1].TID() == 2 and\
-		   op1.operand[1].TID() != 2 and\
-		   op2.operand[1].TID() == 2 and\
+		   op0.operand[1].TID() == TID_VAL and\
+		   op1.operand[1].TID() != TID_VAL and\
+		   op2.operand[1].TID() == TID_VAL and\
 		   op0.operand[0].ID == op1.operand[0].ID and\
 		   op1.operand[0].ID == op2.operand[0].ID and\
 		   op0.operand[0].value == op1.operand[0].value and\
@@ -1015,13 +1016,13 @@ class Defus:
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
 		   IsOpClass(op2.ID, 1, 0, 1) and op3.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		   op2.operand[1].ID == 0x10 and op3.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		   op2.operand[1].ID == ID_REG and op3.operand[0].ID == ID_REG and\
 		   FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)) and\
 		   op2.operand[1].GetB(0) == op1.operand[0].GetB(0) and\
 		   op3.operand[0].GetB(0) == op0.operand[0].GetB(0):
 			
-			if op2.operand[0].TID() == 3 and op2.operand[0].GetB(1) == 0x43:
+			if op2.operand[0].TID() == TID_MEM and op2.operand[0].GetB(1) == 0x43:
 				t = 4
 				if (op0.operand[0].value & 0xf) != 3:
 					t = 2
@@ -1047,16 +1048,16 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if op0.ID == OP_PUSH and IsOpClass(op1.ID, 0, 1, 1) and op2.ID == OP_POP and\
-		   (op0.operand[0].ID == 0x10 or op0.operand[0].TID() == 3) and\
-		   op1.operand[0].TID() in (1, 3) and\
-		   (op2.operand[0].ID == 0x10 or op2.operand[0].TID() == 3) and\
+		   (op0.operand[0].ID == ID_REG or op0.operand[0].TID() == TID_MEM) and\
+		   op1.operand[0].TID() in (TID_REG, TID_MEM) and\
+		   (op2.operand[0].ID == ID_REG or op2.operand[0].TID() == TID_MEM) and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 		   op2.operand[0].value == op0.operand[0].value and\
 		   op2.operand[0].val2 == op0.operand[0].val2:
 		
 			if op1.operand[0].val2 == 1 and\
 			   (op0.operand[0].GetB(0) >> 4) < 4 and\
-			   op1.operand[0].ID == 0x31 and op0.operand[0].TID() == 1:
+			   op1.operand[0].ID == ID_MEM8 and op0.operand[0].TID() == TID_REG:
 				
 				op0.ID = op1.ID
 				op0.operand[0].ID = op2.operand[0].ID
@@ -1073,7 +1074,7 @@ class Defus:
 				op0.CopyOpFields(op1)
 				op0.operand[0].ID = op2.operand[0].ID
 				
-				if op2.operand[0].TID() == 1:
+				if op2.operand[0].TID() == TID_REG:
 					op0.operand[0].SetB(0, ((op2.operand[0].GetB(0) >> 4) << 4) | (op1.operand[0].ID & 0xf) )
 				else:
 					op0.operand[0].ID = (op2.operand[0].TID() << 4 | (op1.operand[0].ID & 0xf) )
@@ -1094,10 +1095,10 @@ class Defus:
 		op3 = self.heap[i+3].instr
 		
 		if op0.ID == OP_PUSH and IsOpClass(op1.ID, 0, 1, 1) and IsOpClass(op2.ID, 0, 1, 1) and op3.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and\
-		   op1.operand[0].TID() in (1, 3) and\
-		   op2.operand[0].TID() in (1, 3) and\
-		   op3.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and\
+		   op1.operand[0].TID() in (TID_REG, TID_MEM) and\
+		   op2.operand[0].TID() in (TID_REG, TID_MEM) and\
+		   op3.operand[0].ID == ID_REG and\
 		   (op1.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 		   (op2.operand[0].value & 0xFFFFFF00) == 0x00004300 and\
 		   op1.operand[0].ID == op2.operand[0].ID and\
@@ -1107,7 +1108,7 @@ class Defus:
 		   op3.operand[0].val2 == op0.operand[0].val2:
 			
 			if op1.operand[0].val2 == 1 and (op0.operand[0].GetB(0) >> 4) < 4 and\
-			   op1.operand[0].ID == 0x31 and op0.operand[0].TID() == 1:
+			   op1.operand[0].ID == ID_MEM8 and op0.operand[0].TID() == TID_REG:
 				op0.ID = op1.ID
 				op0.operand[0].ID = op3.operand[0].ID
 				op0.operand[0].SetB(0, (((op3.operand[0].GetB(0) >> 4) + 4) << 4) | 1)
@@ -1128,7 +1129,7 @@ class Defus:
 				op0.ID = op1.ID
 				op0.CopyOpFields(op1)
 				op0.operand[0].ID = op3.operand[0].ID
-				if op3.operand[0].TID() == 1:
+				if op3.operand[0].TID() == TID_REG:
 					op0.operand[0].val2 = 0
 					op0.operand[0].value = 0
 					op0.operand[0].SetB(0, ((op3.operand[0].GetB(0) >> 4) << 4) | (op1.operand[0].ID & 0xf))
@@ -1140,7 +1141,7 @@ class Defus:
 				op1.ID = op2.ID
 				op1.CopyOpFields(op2)
 				op1.operand[0].ID = op3.operand[0].ID
-				if op3.operand[0].TID() == 1:
+				if op3.operand[0].TID() == TID_REG:
 					op1.operand[0].val2 = 0
 					op1.operand[0].value = 0
 					op1.operand[0].SetB(0, ((op3.operand[0].GetB(0) >> 4) << 4) | (op2.operand[0].ID & 0xf))
@@ -1163,10 +1164,10 @@ class Defus:
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
 		   (IsOpClass(op2.ID, 0, 1, 1) or FUN_10060650(op2)) and\
 		   op3.ID == OP_MOV and op4.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].ID == 0x10 and op2.operand[0].ID == 0x10 and\
-		   op3.operand[0].ID == 0x10 and op3.operand[1].ID == 0x10 and\
-		   op4.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].ID == ID_REG and op2.operand[0].ID == ID_REG and\
+		   op3.operand[0].ID == ID_REG and op3.operand[1].ID == ID_REG and\
+		   op4.operand[0].ID == ID_REG and\
 		   FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)) and\
 		   op1.operand[0].GetB(0) == op3.operand[1].GetB(0) and\
 		   op1.operand[1].GetB(0) == op3.operand[0].GetB(0) and\
@@ -1193,14 +1194,14 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].TID() in (1,2):
-			if (op1.operand[1].TID() != 1 or op1.operand[0].GetB(0) != op1.operand[1].GetB(0)) and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].TID() in (TID_REG, TID_VAL):
+			if (op1.operand[1].TID() != TID_REG or op1.operand[0].GetB(0) != op1.operand[1].GetB(0)) and\
 			   op0.operand[0].GetB(0) == op1.operand[0].GetB(0):
 				loc14 = 0
 				loc18 = 0
 				loc1c = 0
-				if op1.operand[1].TID() == 1 and op1.operand[0].GetB(0) != op1.operand[1].GetB(0) and\
+				if op1.operand[1].TID() == TID_REG and op1.operand[0].GetB(0) != op1.operand[1].GetB(0) and\
 				   op1.operand[0].GetB(0) == op0.operand[0].GetB(0):
 					loc18 = 1
 					loc1c = op1.operand[1].GetB(0)
@@ -1212,17 +1213,17 @@ class Defus:
 						loc14 = 1
 						break
 					
-					if ojp0.operand[0].ID == 0x10 and ojp0.ID != OP_MOV and\
-					   ojp0.operand[1].TID() in (2,0):
+					if ojp0.operand[0].ID == ID_REG and ojp0.ID != OP_MOV and\
+					   ojp0.operand[1].TID() in (TID_VAL, 0):
 						if ojp0.operand[0].GetB(0) != op1.operand[0].GetB(0):
 							loc14 = 1
 							break
 					else:
 						if ojp0.operand[0].ID != 0x10 or ojp0.ID == OP_MOV or\
-						   ojp0.operand[1].TID() != 1 or\
+						   ojp0.operand[1].TID() != TID_REG or\
 						   ojp0.operand[0].GetB(0) == ojp0.operand[1].GetB(0):
 						   
-							if ojp0.operand[0].ID == 0x10 and ojp0.operand[1].TID() == 3:
+							if ojp0.operand[0].ID == ID_REG and ojp0.operand[1].TID() == TID_MEM:
 								if ojp0.operand[0].GetB(0) == op1.operand[0].GetB(0) or\
 								   ojp0.operand[1].GetB(1) != op1.operand[0].GetB(0) or\
 								   ojp0.operand[1].GetB(2) != 0 or\
@@ -1232,7 +1233,7 @@ class Defus:
 								   ojp1.ID != OP_POP or ojp1.operand[0].ID != 0x10 or\
 								   ojp1.operand[0].GetB(0) != op0.operand[0].GetB(0):
 									loc14 = 1
-							elif ojp0.operand[1].ID == 0x10 and ojp0.operand[0].TID() == 3:
+							elif ojp0.operand[1].ID == ID_REG and ojp0.operand[0].TID() == TID_MEM:
 								if ojp0.operand[1].GetB(0) == op1.operand[0].GetB(0) or\
 								   ojp0.operand[0].GetB(1) != op1.operand[0].GetB(0) or\
 								   ojp0.operand[0].GetB(2) != 0 or\
@@ -1242,7 +1243,7 @@ class Defus:
 								   ojp1.ID != OP_POP or ojp1.operand[0].ID != 0x10 or\
 								   ojp1.operand[0].GetB(0) != op0.operand[0].GetB(0):
 									loc14 = 1
-							elif ojp0.operand[1].TID() == 2 and ojp0.operand[0].TID() == 3:
+							elif ojp0.operand[1].TID() == TID_VAL and ojp0.operand[0].TID() == TID_MEM:
 								if ojp0.operand[0].GetB(1) != op1.operand[0].GetB(0) or\
 								   ojp0.operand[0].GetB(2) != 0 or\
 								   ojp0.operand[0].GetB(3) != 0 or\
@@ -1275,20 +1276,20 @@ class Defus:
 					while k < j + 1:
 						okp0 = self.heap[i + 1 + k].instr
 						if k == 0:
-							if op1.operand[1].TID() == 1:
+							if op1.operand[1].TID() == TID_REG:
 								op1.ID = 0
 							else:
 								loc20 = op1.operand[1].value
 								okp0.ID = 0
 						else:
-							if okp0.operand[1].TID() != 1:
+							if okp0.operand[1].TID() != TID_REG:
 								_,loc20 = ComputeVal(okp0.ID, op1.operand[0].GetB(0) & 0xF, loc20, okp0.operand[1].value)
 							okp0.ID = 0
 						k += 1
 					
 					ojp0.ID = 0
 					ojp1.ID = 0
-					if ojp0.operand[1].TID() == 3:
+					if ojp0.operand[1].TID() == TID_MEM:
 						op0.operand[0].val2 = 0
 						op0.operand[0].value = 0
 						op0.operand[0].ID = ojp0.operand[0].ID
@@ -1330,13 +1331,13 @@ class Defus:
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
 		   op2.ID == OP_SHL and op3.ID == OP_ADD and op4.ID == OP_ADD and\
 		   IsOpClass(op5.ID, 1, 0, 1) and op6.ID == OP_POP and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].ID == 0x10 and op2.operand[0].ID == 0x10 and\
-		   op2.operand[1].TID() == 2 and op3.operand[0].ID == 0x10 and\
-		   op3.operand[1].TID() == 2 and op4.operand[0].ID == 0x10 and\
-		   op4.operand[1].ID == 0x10 and\
-		   (op5.operand[1].TID() == 3 or op5.operand[0].TID() == 3) and\
-		   op6.operand[0].ID == 0x10 and\
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].ID == ID_REG and op2.operand[0].ID == ID_REG and\
+		   op2.operand[1].TID() == TID_VAL and op3.operand[0].ID == ID_REG and\
+		   op3.operand[1].TID() == TID_VAL and op4.operand[0].ID == ID_REG and\
+		   op4.operand[1].ID == ID_REG and\
+		   (op5.operand[1].TID() == TID_MEM or op5.operand[0].TID() == TID_MEM) and\
+		   op6.operand[0].ID == ID_REG and\
 		   op0.operand[0].GetB(0) == op1.operand[0].GetB(0) and\
 		   op1.operand[0].GetB(0) == op2.operand[0].GetB(0) and\
 		   op2.operand[0].GetB(0) == op3.operand[0].GetB(0) and\
@@ -1352,7 +1353,7 @@ class Defus:
 		   
 			op0.ID = op5.ID
 			
-			if op5.operand[1].TID() == 3:
+			if op5.operand[1].TID() == TID_MEM:
 				if op5.operand[1].GetB(1) == 0x43:
 					t = 4
 					if (op0.operand[0].GetB(0) & 0xF) != 3:
@@ -1403,8 +1404,8 @@ class Defus:
 		op1 = self.heap[i+1].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_MOV and\
-		   op0.operand[0].ID == 0x10 and op1.operand[0].ID == 0x10 and\
-		   op1.operand[1].TID() == 2 and FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)):
+		   op0.operand[0].ID == ID_REG and op1.operand[0].ID == ID_REG and\
+		   op1.operand[1].TID() == TID_VAL and FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)):
 			loc14 = 0
 			j = 0
 			while j < self.count - i:
@@ -1416,15 +1417,15 @@ class Defus:
 				
 				if ojp0.operand[0].ID != 0x10 or ojp0.ID == OP_MOV or\
                    ojp0.operand[1].TID() not in (0, 2):
-					if ojp0.operand[0].ID == 0x10 and\
-					   ojp0.operand[1].TID() == 1:
+					if ojp0.operand[0].ID == ID_REG and\
+					   ojp0.operand[1].TID() == TID_REG:
 						if ojp0.operand[0].GetB(0) == op1.operand[0].GetB(0) or\
 						   not FUN_10065850(ojp1.operand[0].GetB(0), ojp0.operand[1].GetB(0)) or\
 						   ojp1.ID != OP_POP or ojp1.operand[0].ID != 0x10 or\
 						   ojp1.operand[0].GetB(0) != op0.operand[0].GetB(0):
 							loc14 = 1
 					else:
-						if ojp0.operand[0].TID() == 3 and ojp0.operand[1].TID() == 1:
+						if ojp0.operand[0].TID() == TID_MEM and ojp0.operand[1].TID() == TID_REG:
 							if not FUN_10065850(ojp1.operand[0].GetB(0), ojp0.operand[1].GetB(0)) or\
 							   ojp1.ID != OP_POP or ojp1.operand[0].ID != 0x10 or\
 							   ojp1.operand[0].GetB(0) != op0.operand[0].GetB(0):
@@ -1467,7 +1468,7 @@ class Defus:
 				ojp1.ID = 0
 				op0.operand[1].ID = op1.operand[1].ID
 				op0.operand[1].value = loc18
-				if op0.operand[0].TID() == 3 and op0.operand[0].GetB(1) == 0x43:
+				if op0.operand[0].TID() == TID_MEM and op0.operand[0].GetB(1) == 0x43:
 					if (ojp1.operand[0].value & 0xf) == 3:
 						op0.operand[0].val2 -= 4
 					else:
@@ -1482,8 +1483,8 @@ class Defus:
 		op2 = self.heap[i+2].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_SUB and op2.ID == OP_POP and\
-		   op0.operand[0].TID() == 2 and op1.operand[0].TID() == 3 and\
-		   op1.operand[1].TID() == 1 and op2.operand[0].TID() == 1 and\
+		   op0.operand[0].TID() == TID_VAL and op1.operand[0].TID() == TID_MEM and\
+		   op1.operand[1].TID() == TID_REG and op2.operand[0].TID() == TID_REG and\
 		   op0.operand[0].value == 0 and op1.operand[0].GetB(1) == 0x43 and\
 		   op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
 		   op1.operand[0].val2 == 0 and op1.operand[1].GetB(0) != 0x43 and\
@@ -1503,7 +1504,7 @@ class Defus:
 		
 		if op0.ID == OP_NOT:
 			if op1.ID == OP_INC:
-				if (op0.operand[0].TID() == 3 or op0.operand[0].TID() == 1) and\
+				if (op0.operand[0].TID() == TID_MEM or op0.operand[0].TID() == TID_REG) and\
 				   op0.operand[0].ID == op1.operand[0].ID and\
 				   op0.operand[0].value == op1.operand[0].value and\
 				   op0.operand[0].val2 == op1.operand[0].val2:
@@ -1512,8 +1513,8 @@ class Defus:
 					self.DebugErrModify(i, 2, 0)
 					self.Cleaner(i, 10)
 			elif op1.ID == OP_ADD:
-				if op1.operand[1].TID() == 2 and op1.operand[1].value == 1 and\
-				   op0.operand[0].TID() in (1, 3) and\
+				if op1.operand[1].TID() == TID_VAL and op1.operand[1].value == 1 and\
+				   op0.operand[0].TID() in (TID_REG, TID_MEM) and\
 				   op0.operand[0].ID == op1.operand[0].ID and\
 				   op0.operand[0].value == op1.operand[0].value and\
 				   op0.operand[0].val2 == op1.operand[0].val2:
@@ -1523,8 +1524,8 @@ class Defus:
 					self.Cleaner(i, 10)
 				
 			elif op1.ID == OP_SUB and\
-			     op1.operand[1].TID() == 2 and\
-				op0.operand[0].TID() in (1, 3) and\
+			     op1.operand[1].TID() == TID_VAL and\
+				op0.operand[0].TID() in (TID_REG, TID_MEM) and\
 				 op0.operand[0].ID == op1.operand[0].ID and\
 			  (((op1.operand[1].ID & 0xf) == 1 and op1.operand[1].value == 0xff) or\
 			     op1.operand[1].value == 0xffffffff) and\
@@ -1542,7 +1543,7 @@ class Defus:
 		
 		if op1.ID == OP_NOT:
 			if op0.ID == OP_DEC:
-				if (op1.operand[0].TID() == 3 or op1.operand[0].TID() == 1) and\
+				if (op1.operand[0].TID() == TID_MEM or op1.operand[0].TID() == TID_REG) and\
 				   op1.operand[0].ID == op0.operand[0].ID and\
 				   op0.operand[0].value == op1.operand[0].value and\
 				   op0.operand[0].val2 == op1.operand[0].val2:
@@ -1551,8 +1552,8 @@ class Defus:
 					self.DebugErrModify(i, 2, 0)
 					self.Cleaner(i, 10)
 			elif op0.ID == OP_ADD:
-				if op0.operand[1].TID() == 2 and\
-				   op1.operand[0].TID() in (1,3) and\
+				if op0.operand[1].TID() == TID_VAL and\
+				   op1.operand[0].TID() in (TID_REG, TID_MEM) and\
 				   op0.operand[0].ID == op1.operand[0].ID and\
 			    (((op0.operand[1].ID & 0xf) == 1 and op0.operand[1].value == 0xff) or\
 			       op0.operand[1].value == 0xffffffff) and\
@@ -1566,8 +1567,8 @@ class Defus:
 					self.DebugErrModify(i, 2, 1)
 					self.Cleaner(i, 10)	
 			elif op0.ID == OP_SUB and\
-				op0.operand[1].TID() == 2 and op0.operand[1].value == 1 and\
-				op1.operand[0].TID() in (1, 3) and\
+				op0.operand[1].TID() == TID_VAL and op0.operand[1].value == 1 and\
+				op1.operand[0].TID() in (TID_REG, TID_MEM) and\
 				   op0.operand[0].ID == op1.operand[0].ID and\
 				   op0.operand[0].value == op1.operand[0].value and\
 				   op0.operand[0].val2 == op1.operand[0].val2:
@@ -1586,12 +1587,12 @@ class Defus:
 		op3 = self.heap[i+3].instr
 		
 		if op0.ID == OP_PUSH and op1.ID == OP_SUB and op2.ID == OP_MOV and\
-		   op3.ID == OP_ADD and op0.operand[0].TID() == 2 and\
-		   op1.operand[0].TID() == 3 and (op1.operand[0].ID & 0xf) == 1 and\
-		   op1.operand[1].TID() == 1 and\
-		   op2.operand[0].TID() == 1 and op2.operand[1].TID() == 3 and\
+		   op3.ID == OP_ADD and op0.operand[0].TID() == TID_VAL and\
+		   op1.operand[0].TID() == TID_MEM and (op1.operand[0].ID & 0xf) == 1 and\
+		   op1.operand[1].TID() == TID_REG and\
+		   op2.operand[0].TID() == TID_REG and op2.operand[1].TID() == TID_MEM and\
 		   (op2.operand[1].ID & 0xf) == 1 and\
-		   op3.operand[0].TID() == 1 and op3.operand[1].TID() == 2 and\
+		   op3.operand[0].TID() == TID_REG and op3.operand[1].TID() == TID_VAL and\
 		   op0.operand[0].value == 0 and op1.operand[0].GetB(1) == 0x43 and\
 		   op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
 		   op1.operand[0].val2 == 0 and\
@@ -1626,12 +1627,12 @@ class Defus:
 		   op2.ID == OP_SUB and\
 		   op3.ID in (OP_MOV, OP_XCHG) and\
 		   op4.ID == OP_POP and\
-		   op0.operand[0].TID() == 1 and op1.operand[0].TID() == 1 and\
-		   op1.operand[1].TID() == 2 and op2.operand[0].TID() == 1 and\
-		   op2.operand[1].TID() in (1,3) and\
-		   op3.operand[0].TID() in (1,3) and\
-		   op3.operand[1].TID() in (1,3) and\
-		   op4.operand[0].TID() == 1 and\
+		   op0.operand[0].TID() == TID_REG and op1.operand[0].TID() == TID_REG and\
+		   op1.operand[1].TID() == TID_VAL and op2.operand[0].TID() == TID_REG and\
+		   op2.operand[1].TID() in (TID_REG, TID_MEM) and\
+		   op3.operand[0].TID() in (TID_REG, TID_MEM) and\
+		   op3.operand[1].TID() in (TID_REG, TID_MEM) and\
+		   op4.operand[0].TID() == TID_REG and\
 		   op1.operand[1].value == 0 and\
 		   FUN_10065850(op0.operand[0].GetB(0), op1.operand[0].GetB(0)) and\
 		   op1.operand[0].GetB(0) == op2.operand[0].GetB(0) and\
@@ -1767,9 +1768,58 @@ class Defus:
 		i = 0
 		while i < self.count:
 			op = self.heap[i].instr
-			if op.ID == OP_MOV and op.operand[0].ID == 0x10 and op.operand[1].ID == 0x10 and\
+			if op.ID == OP_MOV and op.operand[0].ID == ID_REG and op.operand[1].ID == ID_REG and\
 			   op.operand[0].GetB(0) == op.operand[1].GetB(0):
 			   op.ID = 0
+			i += 1
+
+		self.Cleaner()
+
+	def PushMovEsp(self):
+		i = 0
+		while i < self.count:
+			if not self.Bounds(i, 1):
+				break
+
+			op0 = self.heap[i].instr
+			op1 = self.heap[i + 1].instr
+			if op0.ID == OP_PUSH and \
+			   op1.ID == OP_MOV and \
+			   op1.operand[0].IsMemBase0(R_ESP):
+				op0.operand[0] = op1.operand[1].Copy()
+		 		op1.ID = 0
+			i += 1
+
+		self.Cleaner()
+
+	def PushADPopAD(self):
+		i = 0
+		while i < self.count:
+			if not self.Bounds(i, 1):
+				break
+
+			op0 = self.heap[i].instr
+			op1 = self.heap[i + 1].instr
+			if op0.ID == OP_PUSHA and \
+			   op1.ID == OP_POPA:
+				op0.ID = 0
+		 		op1.ID = 0
+			i += 1
+
+		self.Cleaner()
+
+	def RemoveJunk(self):
+		i = 0
+		while i < self.count:
+
+			op0 = self.heap[i].instr
+			#jcc next instruction
+			if op0.ID in range(OP_JA, OP_JCXZ) and \
+			   op0.operand[0].value == 0:
+				op0.ID = 0
+
+			if op0.ID == OP_RDTSC:
+				op0.ID = 0
 			i += 1
 
 		self.Cleaner()
@@ -1866,6 +1916,48 @@ class Defus:
 
 				if cnt == self.count:
 					break
+
+	def SimpleD(self, a, vm, dbg = False):
+		if dbg:
+			self.RebuildInfo()
+			xlog("")
+			for l in self.GetListing(True, False):
+				xlog(l)
+		while True:
+			cnt = self.count
+
+			self.Round1()
+			self.Round2()
+			self.Round3()
+			self.Round4()
+			self.Round5()
+			self.Round6()
+			self.Round7()
+			self.Round8()
+			self.Round9()
+
+			self.Round11()
+			self.Round12()
+
+			if dbg:
+				xlog("cnt {} {}".format(cnt, self.count))
+				self.RebuildInfo()
+				for l in self.GetListing(True, False):
+					xlog(l)
+
+			if cnt == self.count:
+				self.CollapseArithmetic(vm.tp)
+				self.RemoveJunk()
+				self.PushADPopAD()
+
+				if cnt == self.count:
+					self.Clear_MovV2()
+
+				if cnt == self.count:
+					self.PushMovEsp()
+
+				if cnt == self.count:
+					break
 	
 	def Simple(self, vm, a, mode, dbg = False):
 		if mode == 'A':
@@ -1874,6 +1966,8 @@ class Defus:
 			self.SimpleB(a, vm, dbg)
 		elif mode == 'C':
 			self.SimpleC(a, vm, dbg)
+		elif mode == 'D':
+			self.SimpleD(a, vm, dbg)
 
 	def GetListing(self, adr, jmp, idx = False, skip = False):
 		outlst = list()
@@ -1893,14 +1987,14 @@ class Defus:
 				txt += XrkText(rk)
 
 				if jmp:
-					if rk.ID == OP_CALL and rk.operand[0].TID() == 2:
+					if rk.ID == OP_CALL and rk.operand[0].TID() == TID_VAL:
 						txt += "({:08X})".format( UINT(rk.operand[0].value + 5 + cmd.addr) )
-					elif rk.ID == OP_JMP and rk.operand[0].TID() == 2:
+					elif rk.ID == OP_JMP and rk.operand[0].TID() == TID_VAL:
 						if rk.operand[0].ID & 0xF == 1:
 							txt += "({:08X})".format(UINT(rk.operand[0].value + 1 + cmd.addr))
 						else:
 							txt += "({:08X})".format(UINT(rk.operand[0].value + 5 + cmd.addr))
-					elif rk.ID > OP_JMP and rk.ID < OP_JCXZ and rk.operand[0].TID() == 2:
+					elif rk.ID > OP_JMP and rk.ID < OP_JCXZ and rk.operand[0].TID() == TID_VAL:
 						if rk.operand[0].ID & 0xF == 1:
 							txt += "({:08X})".format(UINT(rk.operand[0].value + 2 + cmd.addr))
 						else:
@@ -1938,7 +2032,7 @@ class Defus:
 			if IsOpClass(op.ID, 1, 0, 1):
 				if op.operand[0].TID() not in (1,3):
 					return (0, 0, 0)
-				if op.operand[1].TID() != 2:
+				if op.operand[1].TID() != TID_VAL:
 					return (0, 0, 0)
 
 				if op.operand[0].value != opz.operand[0].value or\
@@ -1997,7 +2091,7 @@ class Defus:
 			FLG = EFlags()
 			while l < self.count - 1:
 				op = self.heap[l].instr
-				if opz.operand[0].TID() == 1:
+				if opz.operand[0].TID() == TID_REG:
 					CalcEFlags(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value, FLG)
 					_, val = ComputeVal(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value)
 				else:

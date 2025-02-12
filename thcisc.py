@@ -402,7 +402,7 @@ class CISC(VM):
             j, rk = XrkDecode(m)
             i += j
 
-            if rk.ID == OP_PUSH and rk.operand[0].ID == 0x23:
+            if rk.ID == OP_PUSH and rk.operand[0].ID == ID_VAL32:
                 getPush = True
                 self.pushValue = rk.operand[0].value
                 print("Get PUSH {:X}".format(self.pushValue))
@@ -443,7 +443,7 @@ class CISC(VM):
                     j, rki = XrkDecode(m)
                     iAddr = UINT(i + addr)
                     i += j
-                    if rki.ID == OP_LODS and rki.operand[0].ID == 0x31:
+                    if rki.ID == OP_LODS and rki.operand[0].ID == ID_MEM8:
                         break
                     k += 1
 
@@ -489,7 +489,7 @@ class CISC(VM):
             sz, rk = XrkDecode(mm)
             i += sz
 
-            if rk.ID == OP_PUSH and rk.operand[0].ID == 0x23:
+            if rk.ID == OP_PUSH and rk.operand[0].ID == ID_VAL32:
                 fnd = True
                 self.pushValue = rk.operand[0].value
             else:
@@ -515,8 +515,8 @@ class CISC(VM):
                     fnd = True
                 else:
                     if fnd and IsOpClass(op.ID, 0, 0, 1) and \
-                            op.operand[0].ID == 0x10 and op.operand[1].ID == 0x23 and \
-                            op.operand[0].GetB(0) == 0x73:
+                            op.operand[0].ID == ID_REG and op.operand[1].ID == ID_VAL32 and \
+                            op.operand[0].GetB(0) == R_EDI:
                         _, adr = ComputeVal(op.ID, op.operand[0].GetB(0) & 0xF, adr, op.operand[1].value)
                     if op.ID == OP_CMP:
                         break
@@ -532,11 +532,11 @@ class CISC(VM):
                     fnd = True
                 else:
                     if fnd and IsOpClass(op.ID, 0, 0, 1) and \
-                            op.operand[0].ID == 0x10 and op.operand[1].ID == 0x23 and \
+                            op.operand[0].ID == ID_REG and op.operand[1].ID == ID_VAL32 and \
                             op.operand[0].GetB(0) == 0x73:
                         _, val = ComputeVal(op.ID, op.operand[0].GetB(0) & 0xF, val, op.operand[1].value)
                     if (op.ID == OP_MOV and op.operand[0].ID == 0x10 and \
-                        op.operand[1].ID == 0x10 and op.operand[0].GetB(0) == 3 and \
+                        op.operand[1].ID == ID_REG and op.operand[0].GetB(0) == 3 and \
                         op.operand[1].GetB(0) == 0x73) or op.ID == OP_CMP:
                         break
             self.Align = val
@@ -566,8 +566,8 @@ class CISC(VM):
                     cmd = CMDSimpler.GetFirstAfterAddr(UINT(opa + t + op.operand[0].value))
                     if cmd:
                         i = CMDSimpler.AddrToIndex(cmd.addr)
-                elif op.ID == OP_ADD and op.operand[0].ID == 0x33 and \
-                        op.operand[1].ID == 0x10 and \
+                elif op.ID == OP_ADD and op.operand[0].ID == ID_MEM32 and \
+                        op.operand[1].ID == ID_REG and \
                         op.operand[0].GetB(1) == 0x73 and \
                         op.operand[0].GetB(2) == 0x13 and \
                         op.operand[0].GetB(3) == 2 and \
@@ -585,7 +585,7 @@ class CISC(VM):
             for i in range(CMDSimpler.count):
                 op = CMDSimpler.heap[i].instr
                 if op.ID == OP_MOV and \
-                        op.operand[0].ID == 0x10 and op.operand[1].ID == 0x23 and \
+                        op.operand[0].ID == ID_REG and op.operand[1].ID == ID_VAL32 and \
                         op.operand[0].GetB(0) == 0x13:
                     self.IatCount = op.operand[1].value
                     break
@@ -593,7 +593,7 @@ class CISC(VM):
         for i in range(CMDSimpler.count):
             op = CMDSimpler.heap[i].instr
             if op.ID == OP_CMP:
-                if op.operand[0].ID == 0x10 and op.operand[1].ID == 0x33:
+                if op.operand[0].ID == ID_REG and op.operand[1].ID == ID_MEM32:
                     self.fld54 = op.operand[1].val2
                 break
             if op.opfx != 0:
@@ -635,10 +635,10 @@ class CISC(VM):
             hndl.sz = op0.operand[0].ID & 0xf
             hndl.HasData = 1
 
-            if op1.operand[0].ID == 0x10 and op1.operand[1].ID == 0x10 and \
-                    op2.operand[0].ID == 0x10 and op2.operand[1].TID() == 2 and \
-                    op3.operand[0].ID == 0x10 and op3.operand[1].TID() == 2 and \
-                    op4.operand[0].ID == 0x10 and op4.operand[1].ID == 0x10 and \
+            if op1.operand[0].ID == ID_REG and op1.operand[1].ID == ID_REG and \
+                    op2.operand[0].ID == ID_REG and op2.operand[1].TID() == 2 and \
+                    op3.operand[0].ID == ID_REG and op3.operand[1].TID() == 2 and \
+                    op4.operand[0].ID == ID_REG and op4.operand[1].ID == ID_REG and \
                     op1.ID in (OP_ADD, OP_SUB, OP_XOR) and \
                     op2.ID in (OP_ADD, OP_SUB, OP_XOR) and \
                     op3.ID in (OP_ADD, OP_SUB, OP_XOR) and \
@@ -663,119 +663,119 @@ class CISC(VM):
             elif op6.ID == OP_LEA:
                 hndl.ID = 0
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and \
-                    op5.operand[1].ID == 0x10 and op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and \
-                    op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 2 and \
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and \
+                    op5.operand[1].ID == ID_REG and op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and \
+                    op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 2 and \
                     op7.ID == 0:
                 hndl.ID = 2
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and\
-                 op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and\
+                 op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 2 and\
                  op6.ID == OP_PUSH and\
-                 op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 2 and\
+                 op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 2 and\
                  op7.ID == 0:
                 hndl.ID = 3
 
-            elif op5.ID == OP_PUSH and op5.operand[0].ID == 0x10 and\
+            elif op5.ID == OP_PUSH and op5.operand[0].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op6.ID == 0:
                 hndl.ID = 4
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and\
-                 op6.ID == OP_PUSH and op6.operand[0].ID == 0x33 and op6.operand[0].GetB(1) == 0x73 and\
+                 op6.ID == OP_PUSH and op6.operand[0].ID == ID_MEM32 and op6.operand[0].GetB(1) == 0x73 and\
                  op6.operand[0].GetB(2) == 3 and op6.operand[0].GetB(3) == 2 and op6.operand[0].val2 == 0 and\
                  op7.ID == 0:
                 hndl.ID = 7
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and\
-                 op6.ID == OP_MOV and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 3 and\
-                 op6.operand[1].ID == 0x33 and op6.operand[1].GetB(1) == 0x73 and\
+                 op6.ID == OP_MOV and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 3 and\
+                 op6.operand[1].ID == ID_MEM32 and op6.operand[1].GetB(1) == 0x73 and\
                  op6.operand[1].GetB(2) == 3 and op6.operand[1].GetB(3) == 2 and\
                  op6.operand[1].val2 == 0 and op7.ID == OP_MOVZX and\
-                 op7.operand[0].ID == 0x10 and op7.operand[0].GetB(0) == 2 and op7.operand[1].ID == 0x31 and\
+                 op7.operand[0].ID == ID_REG and op7.operand[0].GetB(0) == 2 and op7.operand[1].ID == ID_MEM8 and\
                  op7.operand[1].GetB(1) == 3 and op7.operand[1].GetB(2) == 0 and op7.operand[1].GetB(3) == 0 and\
-                 op7.operand[1].val2 == 0 and op8.ID == OP_PUSH and op8.operand[0].ID == 0x10 and\
+                 op7.operand[1].val2 == 0 and op8.ID == OP_PUSH and op8.operand[0].ID == ID_REG and\
                  op8.operand[0].GetB(0) == 2 and op9.ID == 0:
                 hndl.ID = 0xe
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and\
-                 op6.ID == OP_MOV and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 3 and\
-                 op6.operand[1].ID == 0x33 and op6.operand[1].GetB(1) == 0x73 and\
+                 op6.ID == OP_MOV and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 3 and\
+                 op6.operand[1].ID == ID_MEM32 and op6.operand[1].GetB(1) == 0x73 and\
                  op6.operand[1].GetB(2) == 3 and op6.operand[1].GetB(3) == 2 and\
-                 op6.operand[1].val2 == 0 and op7.ID == OP_PUSH and op7.operand[0].ID == 0x32 and\
+                 op6.operand[1].val2 == 0 and op7.ID == OP_PUSH and op7.operand[0].ID == ID_MEM16 and\
                  op7.operand[0].GetB(1) == 3 and op7.operand[0].GetB(2) == 0 and\
                  op7.operand[0].GetB(3) == 0 and op7.operand[0].val2 == 0 and op8.ID == 0:
                 hndl.ID = 0xf
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 2 and\
-            op5.operand[1].ID == 0x31 and op5.operand[1].GetB(1) == 3 and op5.operand[1].GetB(2) == 0 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 2 and\
+            op5.operand[1].ID == ID_MEM8 and op5.operand[1].GetB(1) == 3 and op5.operand[1].GetB(2) == 0 and\
             op5.operand[1].GetB(3) == 0 and op5.operand[1].val2 == 0 and op6.ID == OP_PUSH and\
-            op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 2 and op7.ID == 0:
+            op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 2 and op7.ID == 0:
                 hndl.ID = 0x11
 
-            elif op5.ID == OP_PUSH and op5.operand[0].ID == 0x32 and op5.operand[0].GetB(1) == 3 and\
+            elif op5.ID == OP_PUSH and op5.operand[0].ID == ID_MEM16 and op5.operand[0].GetB(1) == 3 and\
                  op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(3) == 0 and op5.operand[0].val2 == 0 and\
                  op6.ID == 0:
                 hndl.ID = 0x12
 
-            elif op5.ID == OP_PUSH and op5.operand[0].ID == 0x33 and op5.operand[0].GetB(1) == 3 and\
+            elif op5.ID == OP_PUSH and op5.operand[0].ID == ID_MEM32 and op5.operand[0].GetB(1) == 3 and\
                  op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(2) == 0 and op5.operand[0].val2 == 0 and\
                  op6.ID == 0:
                 hndl.ID = 0x13
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and op6.ID == OP_POP and\
-                 op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 0x22 and\
-                 op7.ID == OP_MOV and op7.operand[0].ID == 0x31 and op7.operand[0].GetB(1) == 0x73 and\
+                 op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 0x22 and\
+                 op7.ID == OP_MOV and op7.operand[0].ID == ID_MEM8 and op7.operand[0].GetB(1) == 0x73 and\
                  op7.operand[0].GetB(2) == 3 and op7.operand[0].GetB(3) == 2 and op7.operand[0].val2 == 0 and\
-                 op7.operand[1].ID == 0x10 and op7.operand[1].GetB(0) == 0x21 and op8.ID == 0:
+                 op7.operand[1].ID == ID_REG and op7.operand[1].GetB(0) == 0x21 and op8.ID == 0:
                 hndl.ID = 0x1a
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and op6.ID == OP_POP and\
-                 op6.operand[0].ID == 0x32 and op6.operand[0].GetB(1) == 0x73 and op6.operand[0].GetB(2) == 3 and\
+                 op6.operand[0].ID == ID_MEM16 and op6.operand[0].GetB(1) == 0x73 and op6.operand[0].GetB(2) == 3 and\
                  op6.operand[0].GetB(3) == 2 and op6.operand[0].val2 == 0 and op7.ID == 0:
                 hndl.ID = 0x1b
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and op6.ID == OP_POP and\
-                 op6.operand[0].ID == 0x33 and op6.operand[0].GetB(1) == 0x73 and\
+                 op6.operand[0].ID == ID_MEM32 and op6.operand[0].GetB(1) == 0x73 and\
                  op6.operand[0].GetB(2) == 3 and op6.operand[0].GetB(3) == 2 and\
                  op6.operand[0].val2 == 0 and op7.ID == 0:
                 hndl.ID = 0x1c
 
-            elif op5.ID == OP_POP and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x22 and\
-                 op6.ID == OP_MOV and op6.operand[0].ID == 0x31 and op6.operand[0].GetB(1) == 3 and\
+            elif op5.ID == OP_POP and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x22 and\
+                 op6.ID == OP_MOV and op6.operand[0].ID == ID_MEM8 and op6.operand[0].GetB(1) == 3 and\
                  op6.operand[0].GetB(2) == 0 and op6.operand[0].GetB(3) == 0 and op6.operand[0].val2 == 0 and\
-                 op6.operand[1].ID == 0x10 and op6.operand[1].GetB(0) == 0x21 and op7.ID == 0:
+                 op6.operand[1].ID == ID_REG and op6.operand[1].GetB(0) == 0x21 and op7.ID == 0:
                 hndl.ID = 0x1e
 
-            elif op5.ID == OP_POP and op5.operand[0].ID == 0x32 and op5.operand[0].GetB(1) == 3 and\
+            elif op5.ID == OP_POP and op5.operand[0].ID == ID_MEM16 and op5.operand[0].GetB(1) == 3 and\
                  op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(3) == 0 and op5.operand[0].val2 == 0 and\
                  op6.ID == 0:
                 hndl.ID = 0x1f
 
-            elif op5.ID == OP_POP and op5.operand[0].ID == 0x33 and op5.operand[0].GetB(1) == 3 and\
+            elif op5.ID == OP_POP and op5.operand[0].ID == ID_MEM32 and op5.operand[0].GetB(1) == 3 and\
                  op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(3) == 0 and op5.operand[0].val2 == 0 and\
                  op6.ID == 0:
                 hndl.ID = 0x20
 
-            elif op5.ID == OP_ADD and op5.operand[0].ID == 0x10 and\
+            elif op5.ID == OP_ADD and op5.operand[0].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 0x73 and op5.operand[1].TID() == 2 and op5.operand[1].value == 0x3fc:
                 hndl.ID = 0x14b
 
-            elif op5.ID == OP_ADD and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x73 and\
+            elif op5.ID == OP_ADD and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x73 and\
                  op5.operand[1].TID() == 2 and op5.operand[1].value == 0x400:
                 hndl.ID = 0x14b
 
-            elif op6.ID == OP_CMP and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 3 and\
+            elif op6.ID == OP_CMP and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 3 and\
                  op6.operand[1].TID() == 2 and op6.operand[1].value == 7:
                 hndl.ID = 0x153
 
-            elif op1.ID == OP_ADD and op1.operand[0].ID == 0x10 and op1.operand[1].ID == 0x10 and\
+            elif op1.ID == OP_ADD and op1.operand[0].ID == ID_REG and op1.operand[1].ID == ID_REG and\
                  op1.operand[0].GetB(0) == 0x63 and op1.operand[1].GetB(0) == 3:
                 hndl.ID = 0x154
                 hndl.a = 1
@@ -786,7 +786,7 @@ class CISC(VM):
                 hndl.vals[0] = 0
                 hndl.vals[1] = 0
 
-            elif op5.ID == OP_AND and op5.operand[0].ID == 0x10 and\
+            elif op5.ID == OP_AND and op5.operand[0].ID == ID_REG and\
                  op5.operand[1].TID() == 2 and op5.operand[0].GetB(0) == 1 and op5.operand[1].value == 0x7f:
                 hndl.ID = 0x155
 
@@ -800,54 +800,54 @@ class CISC(VM):
                 hndl.vals[0] = 0
                 hndl.vals[1] = 0
 
-            elif op5.ID == OP_MOV and op5.operand[0].ID == 0x31 and\
+            elif op5.ID == OP_MOV and op5.operand[0].ID == ID_MEM8 and\
                  op5.operand[0].GetB(1) == 0x73 and op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(3) == 0 and\
-                 self.fld70 != -1 and self.fld70 != op5.operand[0].val2 and op5.operand[1].ID == 0x10 and\
+                 self.fld70 != -1 and self.fld70 != op5.operand[0].val2 and op5.operand[1].ID == ID_REG and\
                  op5.operand[1].GetB(0) == 1 and op6.ID == 0:
                 hndl.ID = 0x157
 
-            elif op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and\
-                 op5.operand[1].ID == 0x10 and\
+            elif op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and\
+                 op5.operand[1].ID == ID_REG and\
                  op5.operand[0].GetB(0) == 3 and op5.operand[1].GetB(0) == 1 and\
-                 op6.ID == OP_POP and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 0x22 and\
-                 op7.ID == OP_MOV and op7.operand[0].ID == 0x31 and op7.operand[0].GetB(1) == 0x73 and\
+                 op6.ID == OP_POP and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 0x22 and\
+                 op7.ID == OP_MOV and op7.operand[0].ID == ID_MEM8 and op7.operand[0].GetB(1) == 0x73 and\
                  op7.operand[0].GetB(2) == 3 and op7.operand[0].GetB(3) == 2 and op7.operand[0].val2 == 1 and\
-                 op7.operand[1].ID == 0x10 and op7.operand[1].GetB(0) == 0x21 and op8.ID == 0:
+                 op7.operand[1].ID == ID_REG and op7.operand[1].GetB(0) == 0x21 and op8.ID == 0:
                 hndl.ID = 0x158
 
-            elif op5.ID == OP_ADD and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 3 and\
-                 op5.operand[1].ID == 0x33 and op5.operand[1].GetB(1) == 0x73 and op5.operand[1].GetB(2) == 0 and\
-                 op5.operand[1].GetB(3) == 0 and op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and\
+            elif op5.ID == OP_ADD and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 3 and\
+                 op5.operand[1].ID == ID_MEM32 and op5.operand[1].GetB(1) == 0x73 and op5.operand[1].GetB(2) == 0 and\
+                 op5.operand[1].GetB(3) == 0 and op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and\
                  op6.operand[0].GetB(0) == 3 and op7.ID == 0:
                 self.fld74 = op5.operand[1].val2
                 hndl.ID = 0x15a
 
-            elif op5.ID == OP_MOV and op5.operand[0].ID == 0x31 and op5.operand[0].GetB(1) == 0x73 and\
+            elif op5.ID == OP_MOV and op5.operand[0].ID == ID_MEM8 and op5.operand[0].GetB(1) == 0x73 and\
                  op5.operand[0].GetB(2) == 0 and op5.operand[0].GetB(3) == 0 and\
-                 op5.operand[0].val2 == self.fld70 and op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 1 and\
+                 op5.operand[0].val2 == self.fld70 and op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 1 and\
                  op6.ID == 0:
                 hndl.ID = 0x168
 
-            elif op5.ID == OP_SUB and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x23 and\
-                 op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 3 and op6.ID == 0:
+            elif op5.ID == OP_SUB and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x23 and\
+                 op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 3 and op6.ID == 0:
                 hndl.ID = 0x169
 
-            elif op5.ID == OP_ADD and op5.operand[0].ID == 0x10 and\
-                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 3 and\
+            elif op5.ID == OP_ADD and op5.operand[0].ID == ID_REG and\
+                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 3 and\
                  op6.ID == 0:
                 hndl.ID = 0x16a
 
-            elif op5.ID == OP_XOR and op5.operand[0].ID == 0x10 and\
-                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 3 and\
+            elif op5.ID == OP_XOR and op5.operand[0].ID == ID_REG and\
+                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 3 and\
                  op6.ID == 0:
                 hndl.ID = 0x16b
 
-            elif op5.ID == OP_MOV and op5.operand[0].ID == 0x10 and\
-                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 3 and\
+            elif op5.ID == OP_MOV and op5.operand[0].ID == ID_REG and\
+                 op5.operand[0].GetB(0) == 0x23 and op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 3 and\
                  op6.ID == 0:
                 hndl.ID = 0x16f
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and\
              op0.operand[0].GetB(0) == 0x23 and op1.ID == 0 and self.fld6x[0] == 0:
             self.fld6x[0] = 1
             hndl.a = 1
@@ -856,32 +856,32 @@ class CISC(VM):
             hndl.ID = 1
 
         elif op0.ID == OP_POP and\
-             op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_ADD and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+             op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_ADD and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op1.op2x3x6x == 0 and op2.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op1.op2x3x6x == 0 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 6
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x23 and op1.ID == 0:
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x23 and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 9
 
-        elif op0.ID == OP_MOVZX and op0.operand[0].ID == 0x10 and\
-             op0.operand[0].GetB(0) == 2 and op0.operand[1].ID == 0x31 and op0.operand[1].GetB(1) == 0x23 and\
+        elif op0.ID == OP_MOVZX and op0.operand[0].ID == ID_REG and\
+             op0.operand[0].GetB(0) == 2 and op0.operand[1].ID == ID_MEM8 and op0.operand[1].GetB(1) == 0x23 and\
              op0.operand[1].GetB(2) == 0 and op0.operand[1].GetB(3) == 0 and op0.operand[1].val2 == 0 and\
-             op0.op2x3x6x == 0 and op1.ID == OP_PUSH and op1.operand[0].ID == 0x10 and\
+             op0.op2x3x6x == 0 and op1.ID == OP_PUSH and op1.operand[0].ID == ID_REG and\
              op1.operand[0].GetB(0) == 2 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 10
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x32 and op0.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM16 and op0.operand[0].GetB(1) == 0x23 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op0.op2x3x6x == 0 and op1.ID == 0:
             hndl.a = 1
@@ -889,7 +889,7 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0xb
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x23 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op0.op2x3x6x == 0 and op1.ID == 0:
             hndl.a = 1
@@ -897,27 +897,27 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0xc
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and\
              op0.operand[0].GetB(0) == 0x23 and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x15
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and\
              op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_MOV and op1.operand[0].ID == 0x31 and\
+             op1.ID == OP_MOV and op1.operand[0].ID == ID_MEM8 and\
              op1.operand[0].GetB(1) == 0x23 and\
              op1.operand[0].GetB(2) == 0 and\
              op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.op2x3x6x == 0 and op1.operand[1].ID == 0x10 and\
+             op1.operand[0].val2 == 0 and op1.op2x3x6x == 0 and op1.operand[1].ID == ID_REG and\
              op1.operand[1].GetB(0) == 1 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x16
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x32 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM16 and\
              op0.operand[0].GetB(1) == 0x23 and op0.operand[0].GetB(2) == 0 and\
              op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op0.op2x3x6x == 0 and op1.ID == 0:
@@ -926,7 +926,7 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0x17
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x23 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op0.op2x3x6x == 0 and op1.ID == 0 and self.fld6x[1] == 0:
             self.fld6x[1] = 1
@@ -935,7 +935,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x18
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x23 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0 and op0.op2x3x6x == 0 and op1.ID == 0:
             hndl.a = 1
@@ -943,303 +943,303 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x19
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-        op1.ID == OP_ADD and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+        op1.ID == OP_ADD and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
         op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-        op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
+        op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x22
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_ADD and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_ADD and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x23
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_ADD and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_ADD and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x24
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_SUB and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_SUB and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x26
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_SUB and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_SUB and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x27
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_SUB and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_SUB and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x28
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_SUB and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_SUB and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x29
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x12 and\
-             op2.ID == OP_IMUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and op4.ID == OP_PUSHF and op5.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x12 and\
+             op2.ID == OP_IMUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x2c
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x13 and\
-             op2.ID == OP_IMUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 3 and\
-             op3.ID == OP_PUSH and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x13 and\
+             op2.ID == OP_IMUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 3 and\
+             op3.ID == OP_PUSH and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x2d
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 2 and op3.ID == OP_ADC and op3.operand[0].ID == 0x31 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 2 and op3.ID == OP_ADC and op3.operand[0].ID == ID_MEM8 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 1 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 1 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x2f
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 2 and op3.ID == OP_ADC and op3.operand[0].ID == 0x32 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 2 and op3.ID == OP_ADC and op3.operand[0].ID == ID_MEM16 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 2 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 2 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x30
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
-             op0.operand[0].val2 == 0x1c and op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 3 and op3.ID == OP_ADC and op3.operand[0].ID == 0x33 and\
+             op0.operand[0].val2 == 0x1c and op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 3 and op3.ID == OP_ADC and op3.operand[0].ID == ID_MEM32 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 3 and op4.ID == OP_PUSHF and op5.ID == 0:
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 3 and op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x31
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_AND and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_AND and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x33
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_AND and op1.operand[0].ID == 0x32 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_AND and op1.operand[0].ID == ID_MEM16 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x34
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_AND and op1.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_AND and op1.operand[0].ID == ID_MEM32 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x35
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 0x12 and op2.ID == OP_CMP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 0x11 and op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 1 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 0x12 and op2.ID == OP_CMP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 0x11 and op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 1 and\
              op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x37
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x12 and\
-             op2.ID == OP_CMP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSHF and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x12 and\
+             op2.ID == OP_CMP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x38
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x13 and\
-             op2.ID == OP_CMP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 3 and op3.ID == OP_PUSHF and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x13 and\
+             op2.ID == OP_CMP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 3 and op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x39
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_XOR and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_XOR and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x3b
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_XOR and op1.operand[0].ID == 0x32 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_XOR and op1.operand[0].ID == ID_MEM16 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x3c
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and\
-             op0.operand[0].GetB(0) == 3 and op1.ID == OP_XOR and op1.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and\
+             op0.operand[0].GetB(0) == 3 and op1.ID == OP_XOR and op1.operand[0].ID == ID_MEM32 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x3d
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_OR and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_OR and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x3f
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_OR and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_OR and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x40
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_OR and op1.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_OR and op1.operand[0].ID == ID_MEM32 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x41
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x12 and\
-             op2.ID == OP_TEST and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 1 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 0x11 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x12 and\
+             op2.ID == OP_TEST and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 1 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 0x11 and\
              op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x43
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x12 and\
-             op2.ID == OP_TEST and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 2 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 0x12 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x12 and\
+             op2.ID == OP_TEST and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 2 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 0x12 and\
              op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x44
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x13 and\
-             op2.ID == OP_TEST and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 3 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 0x13 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x13 and\
+             op2.ID == OP_TEST and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 3 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 0x13 and\
              op3.ID == OP_PUSHF and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x45
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_MOVZX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_MOVZX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x48
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_MOVZX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_MOVZX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x49
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_MOVZX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_MOVZX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x4d
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_INC and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_INC and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1247,8 +1247,8 @@ class CISC(VM):
             hndl.sz = 1
             hndl.ID = 0x53
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_INC and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_INC and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1256,8 +1256,8 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0x54
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_INC and op1.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_INC and op1.operand[0].ID == ID_MEM32 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
              op1.operand[0].val2 == 0 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1265,145 +1265,145 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x55
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 0x12 and op3.ID == OP_RCL and op3.operand[0].ID == 0x31 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 0x12 and op3.ID == OP_RCL and op3.operand[0].ID == ID_MEM8 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x11 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x11 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x57
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_RCL and op3.operand[0].ID == 0x32 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_RCL and op3.operand[0].ID == ID_MEM16 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x11 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x11 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x58
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_RCL and op3.operand[0].ID == 0x33 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_RCL and op3.operand[0].ID == ID_MEM32 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x11 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x11 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x59
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0x1c and op1.ID == OP_POPF and op2.ID == OP_POP and\
-             op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and op3.ID == OP_RCR and\
-             op3.operand[0].ID == 0x31 and\
+             op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and op3.ID == OP_RCR and\
+             op3.operand[0].ID == ID_MEM8 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x11 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x11 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x5b
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0x1c and op1.ID == OP_POPF and\
-             op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_RCR and op3.operand[0].ID == 0x32 and\
+             op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_RCR and op3.operand[0].ID == ID_MEM16 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x11 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x11 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x5c
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and\
              op0.operand[0].GetB(1) == 0x73 and op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_RCR and op3.operand[0].ID == 0x33 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_RCR and op3.operand[0].ID == ID_MEM32 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and\
              op3.operand[1].GetB(0) == 0x11 and op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x5d
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROL and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROL and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x5f
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROL and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROL and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x60
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROL and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROL and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x61
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROR and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROR and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 99
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROR and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROR and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 100
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_ROR and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_ROR and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x65
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0 and self.fld6x[2] == 0:
             self.fld6x[2] = 1
             hndl.a = 1
@@ -1411,10 +1411,10 @@ class CISC(VM):
             hndl.sz = 1
             hndl.ID = 0x67
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and\
              op3.ID == 0 and self.fld6x[3] == 0:
             self.fld6x[3] = 1
             hndl.a = 1
@@ -1422,10 +1422,10 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0x68
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0 and self.fld6x[4] == 0:
             self.fld6x[4] = 1
             hndl.a = 1
@@ -1433,100 +1433,100 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x69
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SAR and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SAR and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x6b
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SAR and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SAR and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x6c
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and\
              op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SAR and op1.operand[0].ID == 0x33 and\
+             op1.ID == OP_SAR and op1.operand[0].ID == ID_MEM32 and\
              op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and\
              op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x6d
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-              op1.ID == OP_SHL and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+              op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
               op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-              op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+              op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
               op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x6f
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x70
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x71
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHR and op1.operand[0].ID == 0x31 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHR and op1.operand[0].ID == ID_MEM8 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x73
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHR and op1.operand[0].ID == 0x32 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHR and op1.operand[0].ID == ID_MEM16 and\
              op1.operand[0].GetB(1) == 0x43 and op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x74
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_SHR and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_SHR and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x75
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_DEC and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_DEC and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1534,8 +1534,8 @@ class CISC(VM):
             hndl.sz = 1
             hndl.ID = 0x77
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_DEC and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_DEC and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1543,8 +1543,8 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0x78
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_DEC and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_DEC and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
@@ -1552,17 +1552,17 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x79
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x10 and op0.operand[1].GetB(0) == 3 and op1.ID == 0 and self.fld6x[10] == 0:
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_REG and op0.operand[1].GetB(0) == 3 and op1.ID == 0 and self.fld6x[10] == 0:
             self.fld6x[10] = 1
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x7b
 
-        elif op0.ID == OP_ADD and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_SUB and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and\
+        elif op0.ID == OP_ADD and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_SUB and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and\
              op0.operand[1].value == op1.operand[1].value and\
              op2.ID == 0 and self.fld6x[10] == 0:
             self.fld6x[10] = 1
@@ -1571,9 +1571,9 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x7b
 
-        elif op0.ID == OP_SUB and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_ADD and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and op0.operand[1].value == op1.operand[1].value and\
+        elif op0.ID == OP_SUB and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_ADD and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and op0.operand[1].value == op1.operand[1].value and\
              op2.ID == 0 and self.fld6x[10] == 0:
             self.fld6x[10] = 1
             hndl.a = 1
@@ -1581,9 +1581,9 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x7b
 
-        elif op0.ID == OP_XOR and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_XOR and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and op0.operand[1].value == op1.operand[1].value and\
+        elif op0.ID == OP_XOR and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_XOR and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and op0.operand[1].value == op1.operand[1].value and\
              op2.ID == 0 and self.fld6x[10] == 0:
             self.fld6x[10] = 1
             hndl.a = 1
@@ -1591,71 +1591,71 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x7b
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x10 and op0.operand[1].GetB(0) == 3 and op1.ID == 0:
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_REG and op0.operand[1].GetB(0) == 3 and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xa3
 
-        elif op0.ID == OP_XOR and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_XOR and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and op0.operand[1].value == op1.operand[1].value and\
+        elif op0.ID == OP_XOR and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_XOR and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and op0.operand[1].value == op1.operand[1].value and\
              op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xa3
 
-        elif op0.ID == OP_SUB and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_ADD and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and\
+        elif op0.ID == OP_SUB and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_ADD and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and\
              op0.operand[1].value == op1.operand[1].value and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xa3
 
-        elif op0.ID == OP_ADD and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op1.ID == OP_SUB and op1.operand[0].ID == 0x10 and\
-             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == 0x23 and\
+        elif op0.ID == OP_ADD and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op1.ID == OP_SUB and op1.operand[0].ID == ID_REG and\
+             op1.operand[0].GetB(0) == 3 and op1.operand[1].ID == ID_VAL32 and\
              op0.operand[1].value == op1.operand[1].value and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xa3
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_MOVSX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_MOVSX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x80
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_MOVSX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_MOVSX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 1 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x81
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_MOVSX and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
-             op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_MOVSX and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 2 and op3.ID == OP_PUSH and\
+             op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and op4.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x85
 
-        elif op0.ID == OP_AND and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_AND and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
              op0.operand[1].TID() == 2 and op0.operand[1].value == 0xfe or op0.operand[1].value == 0xfffffffe and op1.ID == 0:
             hndl.a = 1
@@ -1663,48 +1663,48 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x87
 
-        elif op0.ID == OP_AND and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_AND and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op0.operand[1].ID == 0x23 and op0.operand[1].value == 0xfffffbff and op1.ID == 0:
+             op0.operand[1].ID == ID_VAL32 and op0.operand[1].value == 0xfffffbff and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x8b
 
-        elif op1.ID == OP_AND and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x73 and\
+        elif op1.ID == OP_AND and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x73 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0x1c and\
-             op1.operand[1].ID == 0x23 and op1.operand[1].value == 0xfffffbff and op2.ID == 0:
+             op1.operand[1].ID == ID_VAL32 and op1.operand[1].value == 0xfffffbff and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x8b
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x23 and op0.operand[1].value == 0x53947 and op1.ID == 0:
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_VAL32 and op0.operand[1].value == 0x53947 and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x8f
 
-        elif op0.ID == OP_AND and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_AND and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op0.operand[1].ID == 0x23 and op0.operand[1].value == 0xfffffdff and op1.ID == 0:
+             op0.operand[1].ID == ID_VAL32 and op0.operand[1].value == 0xfffffdff and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x8f
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x33 and op0.operand[1].GetB(1) == 0x73 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_MEM32 and op0.operand[1].GetB(1) == 0x73 and\
              op0.operand[1].GetB(2) == 0 and op0.operand[1].GetB(3) == 0 and op0.operand[1].val2 == 0x1c and\
-             op1.ID == OP_AND and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_AND and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
              op1.operand[1].TID() == 2 and op1.operand[1].value == 1:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x93
 
-        elif op0.ID == OP_OR and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_OR and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
              op0.operand[1].TID() == 2 and op0.operand[1].value == 1 and op1.ID == 0:
             hndl.a = 1
@@ -1712,7 +1712,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x97
 
-        elif op0.ID == OP_OR and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_OR and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
              op0.operand[1].TID() == 2 and op0.operand[1].value == 0x400 and op1.ID == 0:
             hndl.a = 1
@@ -1720,7 +1720,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x9b
 
-        elif op1.ID == OP_OR and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x73 and\
+        elif op1.ID == OP_OR and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x73 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0x1c and\
              op1.operand[1].TID() == 2 and op1.operand[1].value == 0x400 and op2.ID == 0:
             hndl.a = 1
@@ -1728,7 +1728,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x9b
 
-        elif op0.ID == OP_OR and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_OR and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
              op0.operand[1].TID() == 2 and op0.operand[1].value == 0x200 and op1.ID == 0:
             hndl.a = 1
@@ -1736,7 +1736,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x9f
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == self.fld74 and\
              op1.ID == 0:
             hndl.a = 1
@@ -1744,29 +1744,29 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0xa3
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BT and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BT and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and\
              op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xa8
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_BT and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_BT and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xa9
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTC and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTC and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and\
              op3.ID == 0 and self.fld6x[7] == 0:
             self.fld6x[7] = 1
             hndl.a = 1
@@ -1774,19 +1774,19 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0xab
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTC and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTC and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xac
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTR and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTR and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and\
-             op1.operand[0].val2 == 0 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and\
+             op1.operand[0].val2 == 0 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and\
              op2.ID == OP_PUSHF and op3.ID == 0 and self.fld6x[8] == 0:
             self.fld6x[8] = 1
             hndl.a = 1
@@ -1794,10 +1794,10 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0xaf
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTR and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTR and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
@@ -1807,29 +1807,29 @@ class CISC(VM):
                 hndl.sz = 2
                 hndl.ID = 0xaf
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_BTR and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_BTR and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xb0
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTS and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTS and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0 and self.fld6x[9] == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0 and self.fld6x[9] == 0:
             self.fld6x[9] = 1
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xb3
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_BTS and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_BTS and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == OP_PUSHF and op3.ID == 0:
 
             hndl.a = 1
             hndl.hid = hid
@@ -1840,210 +1840,210 @@ class CISC(VM):
                 hndl.ID = 0xb3
                 hndl.sz = 2
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_BTS and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_BTS and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == OP_PUSHF and op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xb4
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 2 and op3.ID == OP_SBB and op3.operand[0].ID == 0x31 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 2 and op3.ID == OP_SBB and op3.operand[0].ID == ID_MEM8 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 1 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 1 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0xb7
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 2 and op3.ID == OP_SBB and op3.operand[0].ID == 0x32 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 2 and op3.ID == OP_SBB and op3.operand[0].ID == ID_MEM16 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and op3.operand[0].GetB(3) == 0 and\
-             op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 2 and\
+             op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 2 and\
              op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xb8
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
-             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == 0x10 and\
-             op2.operand[0].GetB(0) == 3 and op3.ID == OP_SBB and op3.operand[0].ID == 0x33 and\
+             op1.ID == OP_POPF and op2.ID == OP_POP and op2.operand[0].ID == ID_REG and\
+             op2.operand[0].GetB(0) == 3 and op3.ID == OP_SBB and op3.operand[0].ID == ID_MEM32 and\
              op3.operand[0].GetB(1) == 0x43 and op3.operand[0].GetB(2) == 0 and\
-             op3.operand[0].GetB(3) == 0 and op3.operand[0].val2 == 0 and op3.operand[1].ID == 0x10 and\
+             op3.operand[0].GetB(3) == 0 and op3.operand[0].val2 == 0 and op3.operand[1].ID == ID_REG and\
              op3.operand[1].GetB(0) == 3 and op4.ID == OP_PUSHF and op5.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xb9
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_MUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x11 and\
-             op3.ID == OP_MOVZX and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
-             op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
-             op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == 0x10 and\
-             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_MUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x11 and\
+             op3.ID == OP_MOVZX and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
+             op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
+             op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == ID_REG and\
+             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and\
              op6.operand[0].GetB(0) == 0x12 and op7.ID == OP_PUSHF and op8.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0xbb
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_MUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_PUSH and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x22 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 2 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_MUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_PUSH and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x22 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 2 and\
              op5.ID == OP_PUSHF and op6.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xbc
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_MUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op3.ID == OP_PUSH and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x23 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_MUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op3.ID == OP_PUSH and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x23 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 3 and\
              op5.ID == OP_PUSHF and op6.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xbd
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_IMUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x11 and\
-             op3.ID == OP_MOVZX and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x41 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x12 and\
-             op5.ID == OP_MOVZX and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x12 and\
-             op5.operand[1].ID == 0x10 and op5.operand[1].GetB(0) == 1 and\
-             op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and op6.operand[0].GetB(0) == 0x12 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_IMUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x11 and\
+             op3.ID == OP_MOVZX and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x41 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x12 and\
+             op5.ID == OP_MOVZX and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x12 and\
+             op5.operand[1].ID == ID_REG and op5.operand[1].GetB(0) == 1 and\
+             op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and op6.operand[0].GetB(0) == 0x12 and\
              op7.ID == OP_PUSHF and op8.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0xbf
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_IMUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x12 and\
-             op3.ID == OP_PUSH and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x22 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 2 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_IMUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x12 and\
+             op3.ID == OP_PUSH and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x22 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 2 and\
              op5.ID == OP_PUSHF and op6.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xc0
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_IMUL and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op3.ID == OP_PUSH and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x23 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_IMUL and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op3.ID == OP_PUSH and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x23 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 3 and\
              op5.ID == OP_PUSHF and op6.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xc1
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_DIV and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x11 and\
-             op3.ID == OP_MOVZX and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
-             op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
-             op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == 0x10 and\
-             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_DIV and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x11 and\
+             op3.ID == OP_MOVZX and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
+             op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
+             op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == ID_REG and\
+             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and\
              op6.operand[0].GetB(0) == 0x12 and op7.ID == OP_PUSHF and op8.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0xc3
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 2 and\
-             op3.ID == OP_DIV and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x22 and\
-             op5.ID == OP_PUSH and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 2 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 2 and\
+             op3.ID == OP_DIV and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x22 and\
+             op5.ID == OP_PUSH and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 2 and\
              op6.ID == OP_PUSHF and op7.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0xc4
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x23 and\
-             op3.ID == OP_DIV and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x23 and\
-             op5.ID == OP_PUSH and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x23 and\
+             op3.ID == OP_DIV and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x23 and\
+             op5.ID == OP_PUSH and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 3 and\
              op6.ID == OP_PUSHF and op7.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xc5
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_IDIV and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x11 and\
-             op3.ID == OP_MOVZX and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op3.operand[1].ID == 0x10 and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
-             op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
-             op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == 0x10 and\
-             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == 0x10 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_IDIV and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x11 and\
+             op3.ID == OP_MOVZX and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op3.operand[1].ID == ID_REG and op3.operand[1].GetB(0) == 0x41 and op4.ID == OP_PUSH and\
+             op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x12 and op5.ID == OP_MOVZX and\
+             op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 0x12 and op5.operand[1].ID == ID_REG and\
+             op5.operand[1].GetB(0) == 1 and op6.ID == OP_PUSH and op6.operand[0].ID == ID_REG and\
              op6.operand[0].GetB(0) == 0x12 and op7.ID == OP_PUSHF and op8.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 199
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x12 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
-             op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x22 and\
-             op3.ID == OP_IDIV and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x12 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x22 and\
-             op5.ID == OP_PUSH and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 2 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x12 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
+             op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x22 and\
+             op3.ID == OP_IDIV and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x12 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x22 and\
+             op5.ID == OP_PUSH and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 2 and\
              op6.ID == OP_PUSHF and op7.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 200
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_POP and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x23 and\
-             op3.ID == OP_IDIV and op3.operand[0].ID == 0x10 and op3.operand[0].GetB(0) == 0x13 and\
-             op4.ID == OP_PUSH and op4.operand[0].ID == 0x10 and op4.operand[0].GetB(0) == 0x23 and\
-             op5.ID == OP_PUSH and op5.operand[0].ID == 0x10 and op5.operand[0].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_POP and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x23 and\
+             op3.ID == OP_IDIV and op3.operand[0].ID == ID_REG and op3.operand[0].GetB(0) == 0x13 and\
+             op4.ID == OP_PUSH and op4.operand[0].ID == ID_REG and op4.operand[0].GetB(0) == 0x23 and\
+             op5.ID == OP_PUSH and op5.operand[0].ID == ID_REG and op5.operand[0].GetB(0) == 3 and\
              op6.ID == OP_PUSHF and op7.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xc9
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_BSWAP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 3 and\
-             op2.ID == OP_PUSH and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_BSWAP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 3 and\
+             op2.ID == OP_PUSH and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 3 and\
              op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0xcd
 
-        elif op0.ID == OP_NEG and op0.operand[0].ID == 0x31 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NEG and op0.operand[0].ID == ID_MEM8 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == OP_PUSHF and op2.ID == 0:
             hndl.a = 1
@@ -2051,7 +2051,7 @@ class CISC(VM):
             hndl.sz = 1
             hndl.ID = 0xcf
 
-        elif op0.ID == OP_NEG and op0.operand[0].ID == 0x32 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NEG and op0.operand[0].ID == ID_MEM16 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == OP_PUSHF and op2.ID == 0:
             hndl.a = 1
@@ -2059,7 +2059,7 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0xd0
 
-        elif op0.ID == OP_NEG and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NEG and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == OP_PUSHF and op2.ID == 0:
             hndl.a = 1
@@ -2067,7 +2067,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0xd1
 
-        elif op0.ID == OP_NOT and op0.operand[0].ID == 0x31 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NOT and op0.operand[0].ID == ID_MEM8 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == 0:
             hndl.a = 1
@@ -2075,7 +2075,7 @@ class CISC(VM):
             hndl.sz = 1
             hndl.ID = 0xd3
 
-        elif op0.ID == OP_NOT and op0.operand[0].ID == 0x32 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NOT and op0.operand[0].ID == ID_MEM16 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == 0:
             hndl.a = 1
@@ -2083,7 +2083,7 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0xd4
 
-        elif op0.ID == OP_NOT and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_NOT and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x43 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op1.ID == 0:
             hndl.a = 1
@@ -2092,17 +2092,17 @@ class CISC(VM):
             hndl.ID = 0xd5
 
         ###FIX IT?
-        elif op1.ID == OP_MOV and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x23 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x73 and\
-             op2.ID == OP_OR and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x13 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 0x13:
+        elif op1.ID == OP_MOV and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x23 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x73 and\
+             op2.ID == OP_OR and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 0x13:
             self.fld70 = op0.operand[1].val2
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x14a
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x43 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x43 and\
              op1.ID == 0 and self.fld6x[5] == 0:
             self.fld6x[5] = 1
             hndl.a = 1
@@ -2110,7 +2110,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x14c
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x43 and\
              op1.ID == 0 and self.fld6x[6] == 0:
             self.fld6x[6] = 1
             hndl.a = 1
@@ -2118,15 +2118,15 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x14d
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x23 and\
-             op0.operand[1].ID == 0x10 and op0.operand[1].GetB(0) == 0x43 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x23 and\
+             op0.operand[1].ID == ID_REG and op0.operand[1].GetB(0) == 0x43 and\
              op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x14e
         
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x42 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x42 and\
              op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
@@ -2139,33 +2139,33 @@ class CISC(VM):
             hndl.sz = 2
             hndl.ID = 0x14f
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x43 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x43 and\
              op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x150
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x42 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x42 and\
              op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x151
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x43 and\
              op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x152
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x33 and op0.operand[1].GetB(1) == 0x73 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_MEM32 and op0.operand[1].GetB(1) == 0x73 and\
              op0.operand[1].GetB(2) == 0 and op0.operand[1].GetB(3) == 0 and\
-             op1.ID == OP_ADD and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+             op1.ID == OP_ADD and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and\
              op2.ID == 0:
             self.fld78 = op0.operand[1].val2
             hndl.a = 1
@@ -2173,62 +2173,62 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x15d
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x33 and op0.operand[1].GetB(1) == 0x73 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_MEM32 and op0.operand[1].GetB(1) == 0x73 and\
              op0.operand[1].GetB(2) == 0 and op0.operand[1].GetB(3) == 0 and\
              op0.operand[1].val2 == self.fld78 and\
-             op1.ID == OP_ADD and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x23 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
+             op1.ID == OP_ADD and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x23 and\
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x15e
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 0x13 and\
-             op1.ID == OP_SHL and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 0x13 and\
+             op1.ID == OP_SHL and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 0x11 and op2.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 0x11 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x15f
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_XOR and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x43 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_XOR and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x43 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
+             op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 3 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x160
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[1].TID() == 2 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[1].TID() == 2 and\
              op0.operand[0].GetB(0) == 0x33 and op0.operand[1].value == 0 and op1.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x161
 
-        elif op0.ID == OP_MOVZX and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op0.operand[1].ID == 0x31 and op0.operand[1].GetB(1) == 0x23 and op0.operand[1].GetB(2) == 0 and\
+        elif op0.ID == OP_MOVZX and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op0.operand[1].ID == ID_MEM8 and op0.operand[1].GetB(1) == 0x23 and op0.operand[1].GetB(2) == 0 and\
              op0.operand[1].GetB(3) == 0 and op0.operand[1].val2 == 0 and op0.op2x3x6x == 100 and\
-             op1.ID == OP_PUSH and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_PUSH and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and\
              op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x162
 
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op0.operand[1].ID == 0x32 and op0.operand[1].GetB(1) == 0x23 and op0.operand[1].GetB(2) == 0 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op0.operand[1].ID == ID_MEM16 and op0.operand[1].GetB(1) == 0x23 and op0.operand[1].GetB(2) == 0 and\
              op0.operand[1].GetB(3) == 0 and op0.operand[1].val2 == 0 and op0.op2x3x6x == 100 and\
-             op1.ID == OP_PUSH and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 2 and op2.ID == 0:
+             op1.ID == OP_PUSH and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 2 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x163
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x23 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and\
              op0.operand[0].val2 == 0 and op0.op2x3x6x == 100 and op1.ID == 0:
             hndl.a = 1
@@ -2236,26 +2236,26 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x164
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_MOV and op1.operand[0].ID == 0x31 and op1.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_MOV and op1.operand[0].ID == ID_MEM8 and op1.operand[0].GetB(1) == 0x23 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.op2x3x6x == 0x64 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 1 and\
+             op1.op2x3x6x == 0x64 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 1 and\
              op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 1
             hndl.ID = 0x165
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 2 and\
-             op1.ID == OP_MOV and op1.operand[0].ID == 0x32 and op1.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 2 and\
+             op1.ID == OP_MOV and op1.operand[0].ID == ID_MEM16 and op1.operand[0].GetB(1) == 0x23 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
-             op1.op2x3x6x == 0x64 and op1.operand[1].ID == 0x10 and op1.operand[1].GetB(0) == 2 and op2.ID == 0:
+             op1.op2x3x6x == 0x64 and op1.operand[1].ID == ID_REG and op1.operand[1].GetB(0) == 2 and op2.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 2
             hndl.ID = 0x166
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x23 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x23 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0 and\
              op0.op2x3x6x == 0x64 and op1.ID == 0:
             hndl.a = 1
@@ -2263,7 +2263,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x167
 
-        elif op0.ID == OP_PUSH and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_PUSH and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == self.fld7c and\
              op1.ID == 0:
             hndl.a = 1
@@ -2272,11 +2272,11 @@ class CISC(VM):
             hndl.ID = 0x16c
 
         # FIX IT ? NEEDS op2.ID == 0?
-        elif op0.ID == OP_MOV and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op0.operand[1].ID == 0x33 and op0.operand[1].GetB(1) == 0x43 and\
+        elif op0.ID == OP_MOV and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op0.operand[1].ID == ID_MEM32 and op0.operand[1].GetB(1) == 0x43 and\
              op0.operand[1].GetB(2) == 0 and op0.operand[1].GetB(3) == 0 and op0.operand[1].val2 == 4 and\
-             op1.ID == OP_MOV and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 0x73 and\
-             op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[1].ID == 0x10 and\
+             op1.ID == OP_MOV and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 0x73 and\
+             op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[1].ID == ID_REG and\
              op1.operand[1].GetB(0) == 3:
             hndl.a = 1
             hndl.hid = hid
@@ -2284,7 +2284,7 @@ class CISC(VM):
             hndl.ID = 0x16d
             self.fld7c = op1.operand[0].val2
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == self.fld7c and\
              op1.ID == 0:
             hndl.a = 1
@@ -2292,29 +2292,29 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x16e
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_PUSH and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x23 and\
-             op2.ID == OP_MOV and op2.operand[0].ID == 0x10 and op2.operand[0].GetB(0) == 0x23 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_PUSH and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x23 and\
+             op2.ID == OP_MOV and op2.operand[0].ID == ID_REG and op2.operand[0].GetB(0) == 0x23 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 3 and\
              op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x170
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_POP and op1.operand[0].ID == 0x10 and op1.operand[0].GetB(0) == 0x13 and\
-             op2.ID == OP_MOV and op2.operand[0].ID == 0x33 and op2.operand[0].GetB(1) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_POP and op1.operand[0].ID == ID_REG and op1.operand[0].GetB(0) == 0x13 and\
+             op2.ID == OP_MOV and op2.operand[0].ID == ID_MEM32 and op2.operand[0].GetB(1) == 3 and\
              op2.operand[0].GetB(2) == 0 and op2.operand[0].GetB(3) == 0 and op2.operand[0].val2 == 0 and\
-             op2.operand[1].ID == 0x10 and op2.operand[1].GetB(0) == 0x13 and\
+             op2.operand[1].ID == ID_REG and op2.operand[1].GetB(0) == 0x13 and\
              op3.ID == 0:
             hndl.a = 1
             hndl.hid = hid
             hndl.sz = 3
             hndl.ID = 0x171
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x10 and op0.operand[0].GetB(0) == 3 and\
-             op1.ID == OP_PUSH and op1.operand[0].ID == 0x33 and op1.operand[0].GetB(1) == 3 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_REG and op0.operand[0].GetB(0) == 3 and\
+             op1.ID == OP_PUSH and op1.operand[0].ID == ID_MEM32 and op1.operand[0].GetB(1) == 3 and\
              op1.operand[0].GetB(2) == 0 and op1.operand[0].GetB(3) == 0 and op1.operand[0].val2 == 0 and\
              op2.ID == 0:
             hndl.a = 1
@@ -2322,7 +2322,7 @@ class CISC(VM):
             hndl.sz = 3
             hndl.ID = 0x172
 
-        elif op0.ID == OP_POP and op0.operand[0].ID == 0x33 and op0.operand[0].GetB(1) == 0x73 and\
+        elif op0.ID == OP_POP and op0.operand[0].ID == ID_MEM32 and op0.operand[0].GetB(1) == 0x73 and\
              op0.operand[0].GetB(2) == 0 and op0.operand[0].GetB(3) == 0 and op0.operand[0].val2 == 0x1c and\
              op1.ID == 0:
             hndl.a = 1

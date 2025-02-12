@@ -106,6 +106,10 @@ class OperandInfo:
 	def IsMem8Roff(self, r1, r2, mult, off):
 		return self.ID == ID_MEM8 and self.GetB(1) == r1 and self.GetB(2) == r2 and self.GetB(3) == mult and self.val2 == off
 
+	def IsMemBase0(self, r1):
+		return (self.TID() == TID_MEM and self.GetB(1) == r1 and self.GetB(2) == 0 and self.GetB(3) == 0 and self.val2 == 0) or \
+		       (self.TID() == TID_MEM and self.GetB(1) == 0 and self.GetB(2) == r1 and self.GetB(3) == 0 and self.val2 == 0)
+
 def GetOperandSize(op66, oprnd, unk):
 	tp = (UWORD(oprnd) >> 6) & 0x3F
 	if tp == 1:
