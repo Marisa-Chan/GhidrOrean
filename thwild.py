@@ -1507,9 +1507,9 @@ class WILD(VM):
                         elif op.operand[0].Base() == r:
                             break
 
-                jccTbl = (OP_JE, OP_JLE, OP_JNZ, OP_JA,
+                jccTbl = (OP_JE, OP_JE, OP_JNZ, OP_JA,
                           OP_JNB, OP_JB, OP_JBE, OP_JG,
-                          OP_JGE, OP_JL, OP_JCXZ, OP_JNO,
+                          OP_JGE, OP_JL, OP_JLE, OP_JNO,
                           OP_JNP, OP_JNS, OP_JO, OP_JP, OP_JS)
 
                 t = op.operand[1].value
