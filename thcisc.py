@@ -202,7 +202,8 @@ class CISC(VM):
                 if arg.src & 0x80:
                     arg.src &= 0x7F
                     arg.notHave = 1
-                elif (arg.src & 0xF0) == 0x10:
+
+                if (arg.src & 0xF0) == 0x10:
                     arg.reg = int(a[1], 16)
                 elif (arg.src & 0xF0) == 0x20:
                     arg.cons = int(a[1], 16)
@@ -3856,7 +3857,7 @@ class CISC(VM):
                     rk.ID = loc48
                     if cv5:
                         rk.op2x3x6x = 0x64
-                    if casm and casm.args and casm.args[0].src & 0xF == 2:
+                    if casm and casm.args and (casm.args[0].src & 0xF) == 2:
                         rk.op66 = 0x66
 
                     if casm and casm.args:
