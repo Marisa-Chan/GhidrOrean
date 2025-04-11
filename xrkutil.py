@@ -155,3 +155,15 @@ def xlog(*args):
 		XLOG.write(ln + "\n")
 	print(ln)
 
+def Ext8to32(b):
+	b &= 0xFF
+	if b & 0x80:
+		b |= 0xFFFFFF00
+	return b
+
+def Ext16to32(w):
+	w &= 0xFFFF
+	if w & 0x8000:
+		w |= 0xFFFF0000
+	return w
+

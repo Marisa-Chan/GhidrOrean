@@ -204,7 +204,7 @@ def FUN_1008d600(bts, opr, op66, oprnd):
 		opr.SetB(1, t)
 		t = DecodeMemReg16(b & 7, 1)
 		opr.SetB(2, t)
-		opr.val2 = GetWORD(bts[1:3])
+		opr.val2 = Ext16to32( GetWORD(bts[1:3]) )
 		return 3
 	elif b & 0x40 == 0x40:
 		opr.ID = sz | ID_MEMx
@@ -212,7 +212,7 @@ def FUN_1008d600(bts, opr, op66, oprnd):
 		opr.SetB(1, t)
 		t = DecodeMemReg16(b & 7, 1)
 		opr.SetB(2, t)
-		opr.val2 = UB(bts[1])
+		opr.val2 = Ext8to32( bts[1] )
 		return 2
 	else:
 		opr.ID = sz | ID_MEMx
@@ -247,7 +247,7 @@ def DecodeMem32(bts, opr):
 		else:
 			return 2
 	elif b & 0xc0 == 0x40:
-		opr.val2 = UB(bts[2])
+		opr.val2 = Ext8to32(bts[2])
 		return 3
 	elif b & 0xc0 == 0x80:
 		opr.val2 = GetDWORD(bts[2:6])
@@ -278,7 +278,7 @@ def FUN_1008d2b0(bts, opr, op66, oprnd):
 			return DecodeMem32(bts, opr)
 		else:
 			opr.SetB(1, ((bts[0] & 7) << 4) | 3)
-			opr.val2 = UB(bts[1])
+			opr.val2 = Ext8to32(bts[1])
 			return 2
 	else:
 		opr.ID = ID_MEMx | sz
