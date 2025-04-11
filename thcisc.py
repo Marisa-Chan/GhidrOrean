@@ -320,6 +320,8 @@ class CISC(VM):
         except:
             return False
 
+        print("Read IAT {}/TXT/Cisc_Iat_{:08x}.txt".format(self.WrkDir, addr))
+
         readiat = True
         for l in f:
             if l[:2] == "//":
@@ -2336,6 +2338,8 @@ class CISC(VM):
         self.CiscHndlRevMap[hndl.ID] = hndl
 
     def WriteIATFile(self):
+        print("Save IAT to {}/TXT/Cisc_Iat_{:08x}.txt".format(self.WrkDir, self.MainHandlerAddr))
+
         f = open("{}/TXT/Cisc_Iat_{:08x}.txt".format(self.WrkDir, self.MainHandlerAddr),"w")
         f.write("// Cisc Machine Header\n// ImageBase\tAlign\t\tIatAddr\t\tIatDis\t\tIatCount\tDLLCheck\n")
         f.write("{:08X}\t{:08X}\t{:08X}\t{:08X}\t{:08X}\t{:08X}\n\n".format(self.ImageBase, self.Align, self.IatAddr, self.IatDis, self.IatCount, self.fld50))
