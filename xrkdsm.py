@@ -158,12 +158,16 @@ class rkInstruction:
 		self.opInfo = b.opInfo
 		self.bts = b.bts[:]
 	
-def GetLeading(bts, rki):
+def GetLeading(bts, rki, x64 = False):
 	fnd = [False, ] * 4
 	i = 0
 	while(True):
 		ub = UB(bts[i])
 		if ub in (0x26, 0x2e, 0x36, 0x3e, 0x64, 0x65):
+			if fnd[1]: return i
+			rki.op2x3x6x = ub
+			fnd[1] = True
+		elif x64 and ub in range(0x40, 0x50):
 			if fnd[1]: return i
 			rki.op2x3x6x = ub
 			fnd[1] = True
@@ -184,9 +188,9 @@ def GetLeading(bts, rki):
 		i += 1	
 
 
-def XrkDecode(bts):
+def XrkDecode(bts, x64 = False, dbg = False):
 	rki = rkInstruction()
-	i = GetLeading(bts, rki)
+	i = GetLeading(bts, rki, x64)
 	
 	opInfo = None
 	
@@ -417,7 +421,7 @@ def XrkDecode(bts):
 		oproff = 0
 		for j in range(4):
 			if opInfo.operand[j] != 0:
-				oproff += DecodeOperand(bts[i:], rki, j, opInfo.operand[j], oproff)
+				oproff += DecodeOperand(bts[i:], rki, j, opInfo.operand[j], oproff, dbg)
 		
 		if opInfo.b1 == 0 and opInfo.b2 == 0x83:
 			sz = rki.operand[1].ID & 0xf
@@ -467,9 +471,10 @@ def XrkDecode(bts):
 
 
 
-REG8NAME = ("AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH")
-REG16NAME = ("AX", "CX", "DX", "BX", "SP", "BP", "SI", "DI")
-REG32NAME = ("EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI")
+REG8NAME = ("AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH", "R8B", "R9B", "R10B", "R11B", "R12B", "R13B", "R14B", "R15B")
+REG16NAME = ("AX", "CX", "DX", "BX", "SP", "BP", "SI", "DI", "R8W", "R9W", "R10W", "R11W", "R12W", "R13W", "R14W", "R15W")
+REG32NAME = ("EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI", "R8D", "R9D", "R10D", "R11D", "R12D", "R13D", "R14D", "R15D")
+REG64NAME = ("RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15")
 PTRNAME = ("UNK PTR", "byte ptr ", "word ptr ", "dword ptr ",\
 		   "FWORD PTR ", "QWORD PTR ", "TBYTE PTR ", "(14-BYTE) PTR ",\
 		   "UNK PTR", "(28-BYTE) PTR ", "(98-BYTE) PTR ", "(108-BYTE) PTR ",\
@@ -495,6 +500,8 @@ def XrkTextOp(rk, i = 0):
 			o += REG16NAME[regid]
 		elif sz == 3:
 			o += REG32NAME[regid]
+		elif sz == 4:
+			o += REG64NAME[regid]
 		else:
 			o += "REG UNK"
 	elif tid == TID_VAL:
@@ -534,6 +541,8 @@ def XrkTextOp(rk, i = 0):
 				o += REG16NAME[rid]
 			elif sz == 3:
 				o += REG32NAME[rid]
+			elif sz == 4:
+				o += REG64NAME[rid]
 			else:
 				o += "REG?"
 
@@ -546,6 +555,8 @@ def XrkTextOp(rk, i = 0):
 				o += REG16NAME[rid]
 			elif sz == 3:
 				o += REG32NAME[rid]
+			elif sz == 4:
+				o += REG64NAME[rid]
 			else:
 				o += "REG?"
 

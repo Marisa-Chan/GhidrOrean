@@ -257,7 +257,7 @@ def DecodeMem32(bts, opr):
 	return 2
 
 
-def FUN_1008d2b0(bts, opr, op66, oprnd):
+def FUN_1008d2b0(bts, opr, op66, oprnd, dbg = False):
 	sz  = GetOperandSize(op66, oprnd, 0)
 	b = UB(bts[0])
 	if (b & 0xC0) == 0xc0:
@@ -291,10 +291,13 @@ def FUN_1008d2b0(bts, opr, op66, oprnd):
 			opr.SetB(1, ((bts[0] & 7) << 4) | 3)
 			return 1
 
-def DecodeOperand(bts, rki, i, oprnd, offset):
-	#print("DecodeOperand {} i {:d} , opr {:X}, off {:d}".format(rki.opInfo.MNEM, i, oprnd, offset))
+def DecodeOperand(bts, rki, i, oprnd, offset, dbg = False):
+	#xlog("DecodeOperand {} i {:d} , opr {:X}, off {:d}".format(rki.opInfo.MNEM, i, oprnd, offset))
 	sz = GetOperandSize(rki.op66, oprnd, 0)
 	opr = oprnd & 0x3f
+
+	if (dbg):
+		xlog("DecodeOperand {} i {:d} , opr {:X}, off {:d}  sz {:x}  opr {:x}".format(rki.opInfo.MNEM, i, oprnd, offset, sz, opr))
 
 	if opr == 1:
 		if sz == 4:
@@ -356,7 +359,7 @@ def DecodeOperand(bts, rki, i, oprnd, offset):
 			return 4
 	elif opr == 0xc:
 		if rki.op67 == 0:
-			return FUN_1008d2b0(bts, rki.operand[i], rki.op66, oprnd)
+			return FUN_1008d2b0(bts, rki.operand[i], rki.op66, oprnd, dbg)
 		else:
 			return FUN_1008d600(bts, rki.operand[i], rki.op66, oprnd)
 	elif opr == 0xe:
@@ -366,7 +369,7 @@ def DecodeOperand(bts, rki, i, oprnd, offset):
 			return 4
 		elif rki.op67 == 0x67:
 			rki.operand[i].ID = ID_MEMx | sz
-			rki.operand[i].val2 = GetWORD(bts[offset:offset + 2])
+			rki.operand[i].val2 = Ext16to32( GetWORD(bts[offset:offset + 2]) )
 			return 2
 		else:
 			print("Incorrect opr {:x} {:x}".format(opr, oprnd)) 
