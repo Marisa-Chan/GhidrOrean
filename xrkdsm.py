@@ -509,7 +509,8 @@ def XrkTextOp(rk, i = 0):
 			o += "IMMC UNK"
 	elif tid == TID_MEM:
 		sz = op.ID & 0xF
-		o += PTRNAME[sz]
+		if rk.ID != OP_LEA:
+			o += PTRNAME[sz]
 		if rk.op2x3x6x == 0x2e:
 			o += "CS: "
 		elif rk.op2x3x6x == 0x36:
@@ -547,11 +548,8 @@ def XrkTextOp(rk, i = 0):
 				o += REG32NAME[rid]
 			else:
 				o += "REG?"
-		if op.GetB(3) != 0:
-			if op.GetB(2) == 0:
-				o += "ERROR"
-			else:
-				o += MULNAME[op.GetB(3)]
+
+			o += MULNAME[op.GetB(3)]
 
 		if op.val2 != 0 or (op.GetB(1) == 0 and op.GetB(2) == 0):
 			if op.GetB(1) != 0 or op.GetB(2) != 0:
